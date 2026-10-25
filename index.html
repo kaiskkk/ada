@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ada Immobilier</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Maisons et appartements à vendre à Lyon et dans l'Ouest lyonnais. Estimation, vente et accompagnement jusqu'à la signature chez le notaire.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<p class="bandeau-demo">Aperçu&nbsp;: les annonces, le nom et les coordonnées sont des exemples à remplacer.</p>
+
+<header class="entete">
+  <div class="enveloppe entete-ligne">
+    <a class="logo" href="#accueil" aria-label="Ada Immobilier, retour en haut de page">
+      <span class="plaque"><small>Immobilier</small><strong>Ada</strong></span>
+    </a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="#biens">Biens à vendre</a>
+      <a href="#vendre">Vendre</a>
+      <a href="#apropos">À propos</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <a class="bouton" href="#estimation">Estimer mon bien</a>
+  </div>
+</header>
+
+<main>
+
+  <section class="scene" id="accueil" aria-labelledby="titre-accueil">
+    <div class="enveloppe scene-haut">
+      <p class="surtitre">Lyon · Ouest lyonnais</p>
+      <div class="scene-intro">
+        <h1 id="titre-accueil">Votre prochaine adresse est <em>dans cette rue.</em></h1>
+        <p class="chapo">Appartements anciens, maisons de ville, villas avec jardin&nbsp;: je vends des biens que je connais de la cave au grenier. Et si vous vendez le vôtre, je vous accompagne jusqu'à la signature chez le notaire.</p>
+      </div>
+      <form class="recherche" id="recherche" role="search" aria-label="Rechercher un bien">
+        <label class="recherche-champ" for="r-type">
+          <span>Type de bien</span>
+          <span class="select"><select id="r-type">
+            <option value="tous">Tous les biens</option>
+            <option value="appartement">Appartements</option>
+            <option value="maison">Maisons</option>
+          </select></span>
+        </label>
+        <label class="recherche-champ" for="r-budget">
+          <span>Budget maximum</span>
+          <span class="select"><select id="r-budget">
+            <option value="0">Sans limite</option>
+            <option value="300000">300 000 €</option>
+            <option value="500000">500 000 €</option>
+            <option value="800000">800 000 €</option>
+            <option value="1500000">1 500 000 €</option>
+          </select></span>
+        </label>
+        <label class="recherche-champ" for="r-pieces">
+          <span>Pièces</span>
+          <span class="select"><select id="r-pieces">
+            <option value="0">Peu importe</option>
+            <option value="2">2 et plus</option>
+            <option value="3">3 et plus</option>
+            <option value="4">4 et plus</option>
+            <option value="5">5 et plus</option>
+          </select></span>
+        </label>
+        <button class="bouton" type="submit">Voir les biens</button>
+      </form>
+    </div>
+
+    <div class="rue">
+      <p class="enveloppe rue-legende">Les fenêtres éclairées sont à vendre. Cliquez sur une façade pour ouvrir sa fiche.</p>
+      <div class="rue-cadre" id="rue"></div>
+      <div class="trottoir" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="section biens" id="biens" aria-labelledby="titre-biens">
+    <div class="enveloppe">
+      <div class="section-tete">
+        <div class="section-titre">
+          <p class="surtitre">Annonces</p>
+          <h2 id="titre-biens">Biens à vendre</h2>
+        </div>
+        <div class="outils">
+          <div class="puces" role="group" aria-label="Type de bien">
+            <button type="button" class="puce" data-type="tous" aria-pressed="true">Tous</button>
+            <button type="button" class="puce" data-type="appartement" aria-pressed="false">Appartements</button>
+            <button type="button" class="puce" data-type="maison" aria-pressed="false">Maisons</button>
+          </div>
+          <label class="tri" for="tri">
+            <span>Trier</span>
+            <span class="select"><select id="tri">
+              <option value="recent">Plus récents</option>
+              <option value="prix-asc">Prix croissant</option>
+              <option value="prix-desc">Prix décroissant</option>
+              <option value="surface">Plus grands</option>
+            </select></span>
+          </label>
+        </div>
+      </div>
+      <p class="resultats"><span id="compte" aria-live="polite"></span> <button type="button" class="lien-bouton" id="effacer" data-effacer hidden>Effacer les filtres</button></p>
+
+      <ul class="grille" id="grille"></ul>
+
+      <div class="vide" id="vide" hidden>
+        <p><strong>Aucun bien ne correspond à ces critères pour le moment.</strong></p>
+        <p>Décrivez-moi ce que vous cherchez&nbsp;: je vous préviens dès qu'un bien correspond, souvent avant sa mise en ligne.</p>
+        <p class="vide-actions"><button type="button" class="bouton bouton-contour" data-effacer>Voir tous les biens</button> <a class="bouton" href="#contact">Me décrire ma recherche</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section vendre" id="vendre" aria-labelledby="titre-vendre">
+    <div class="enveloppe">
+      <div class="section-tete section-tete-texte">
+        <div class="section-titre">
+          <p class="surtitre">Vendre</p>
+          <h2 id="titre-vendre">Vous vendez&nbsp;? Je vous accompagne jusque chez le notaire.</h2>
+        </div>
+        <p class="section-chapo">Une vente se joue sur le bon prix et sur les bons acheteurs. Voici comment elle se déroule, étape par étape.</p>
+      </div>
+
+      <div class="vendre-grille">
+        <ol class="etapes">
+          <li class="etape">
+            <span class="etape-num" aria-hidden="true">1</span>
+            <div>
+              <p class="etape-delai">Sous 48 h</p>
+              <h3>Estimation</h3>
+              <p>Je visite votre bien, j'étudie les ventes récentes du quartier et je vous remets un avis de valeur écrit.</p>
+            </div>
+          </li>
+          <li class="etape">
+            <span class="etape-num" aria-hidden="true">2</span>
+            <div>
+              <p class="etape-delai">Sous une semaine</p>
+              <h3>Mise en vente</h3>
+              <p>Photos, plan, diagnostics obligatoires (DPE, électricité, amiante…), puis diffusion de l'annonce.</p>
+            </div>
+          </li>
+          <li class="etape">
+            <span class="etape-num" aria-hidden="true">3</span>
+            <div>
+              <p class="etape-delai">Selon le marché</p>
+              <h3>Visites</h3>
+              <p>Je fais visiter des acheteurs dont le financement est vérifié, et je vous envoie un compte rendu après chaque visite.</p>
+            </div>
+          </li>
+          <li class="etape">
+            <span class="etape-num" aria-hidden="true">4</span>
+            <div>
+              <p class="etape-delai">10 jours de rétractation</p>
+              <h3>Compromis de vente</h3>
+              <p>Une fois l'offre acceptée, on signe le compromis. L'acheteur dispose alors de 10 jours pour se rétracter.</p>
+            </div>
+          </li>
+          <li class="etape">
+            <span class="etape-num" aria-hidden="true">5</span>
+            <div>
+              <p class="etape-delai">Environ 3 mois après</p>
+              <h3>Signature chez le notaire</h3>
+              <p>L'acte authentique est signé, le notaire vous verse le prix de vente et vous remettez les clés.</p>
+            </div>
+          </li>
+        </ol>
+
+        <form class="formulaire formulaire-carte" id="estimation" data-envoi data-objet="Demande d'estimation">
+          <h3>Faire estimer mon bien</h3>
+          <p class="formulaire-intro">Gratuit et sans engagement. Je vous rappelle pour convenir d'une visite.</p>
+          <div class="champs">
+            <label class="champ" for="e-type">
+              <span>Type de bien</span>
+              <span class="select"><select id="e-type" name="Type de bien">
+                <option>Appartement</option>
+                <option>Maison</option>
+                <option>Terrain</option>
+                <option>Autre</option>
+              </select></span>
+            </label>
+            <label class="champ" for="e-surface"><span>Surface (m²)</span><input id="e-surface" name="Surface (m²)" type="number" min="1" inputmode="numeric" placeholder="85"></label>
+            <label class="champ champ-large" for="e-adresse"><span>Adresse ou quartier</span><input id="e-adresse" name="Adresse" autocomplete="street-address" placeholder="Rue, quartier ou commune" required></label>
+            <label class="champ" for="e-nom"><span>Nom</span><input id="e-nom" name="Nom" autocomplete="name" required></label>
+            <label class="champ" for="e-contact"><span>Téléphone ou e-mail</span><input id="e-contact" name="Contact" autocomplete="email" required></label>
+          </div>
+          <button class="bouton" type="submit">Demander une estimation</button>
+          <div class="form-retour" role="status" hidden></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="section apropos" id="apropos" aria-labelledby="titre-apropos">
+    <div class="enveloppe apropos-grille">
+      <div class="apropos-texte">
+        <p class="surtitre">À propos</p>
+        <h2 id="titre-apropos">Un seul interlocuteur, du premier rendez-vous à la remise des clés.</h2>
+        <p>Ada Immobilier, c'est du conseil immobilier indépendant à Lyon et dans l'Ouest lyonnais. Je vends des appartements anciens et récents, des maisons de ville et des villas, et j'aide aussi les acheteurs à trouver le bon bien.</p>
+        <p>Pas de standard ni de passage de relais&nbsp;: c'est moi qui fais les estimations, les visites et le suivi jusqu'à l'acte.</p>
+        <h3 class="secteurs-titre">Secteurs</h3>
+        <ul class="secteurs">
+          <li class="plaque plaque-sm"><small>Lyon 2e</small><strong>Presqu'île</strong></li>
+          <li class="plaque plaque-sm"><small>Lyon 2e</small><strong>Confluence</strong></li>
+          <li class="plaque plaque-sm"><small>Lyon 4e</small><strong>Croix-Rousse</strong></li>
+          <li class="plaque plaque-sm"><small>Lyon 7e</small><strong>Guillotière</strong></li>
+          <li class="plaque plaque-sm"><small>Lyon 8e</small><strong>Monplaisir</strong></li>
+          <li class="plaque plaque-sm"><small>69100</small><strong>Villeurbanne</strong></li>
+          <li class="plaque plaque-sm"><small>69130</small><strong>Écully</strong></li>
+          <li class="plaque plaque-sm"><small>69300</small><strong>Caluire-et-Cuire</strong></li>
+        </ul>
+      </div>
+      <dl class="principes">
+        <div>
+          <dt>Un avis de valeur écrit</dt>
+          <dd>Un prix argumenté à partir des ventes récentes du quartier et de l'état réel du bien.</dd>
+        </div>
+        <div>
+          <dt>Des visites préparées</dt>
+          <dd>Je vérifie le projet et le financement des acheteurs avant de leur ouvrir votre porte.</dd>
+        </div>
+        <div>
+          <dt>Un compte rendu après chaque visite</dt>
+          <dd>Vous savez ce qui a plu, ce qui a freiné et ce qu'on peut ajuster.</dd>
+        </div>
+        <div>
+          <dt>Un suivi jusqu'à l'acte</dt>
+          <dd>Diagnostics, compromis, conditions suspensives, rendez-vous chez le notaire&nbsp;: je coordonne tout.</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="contact" id="contact" aria-labelledby="titre-contact">
+    <div class="enveloppe contact-grille">
+      <div>
+        <p class="surtitre">Contact</p>
+        <h2 id="titre-contact">Un projet de vente ou d'achat&nbsp;?</h2>
+        <p class="contact-texte">Écrivez-moi en quelques lignes&nbsp;: le type de bien, le quartier, votre calendrier. Je vous réponds rapidement.</p>
+      </div>
+      <div class="contact-coord">
+        <p class="contact-email"><span data-email>contact@example.com</span></p>
+        <p class="contact-actions">
+          <a class="bouton bouton-inverse" data-mailto href="mailto:contact@example.com">Écrire un e-mail</a>
+          <button type="button" class="bouton bouton-contour-inverse" data-copier>Copier l'adresse</button>
+        </p>
+        <dl class="contact-infos">
+          <div data-bloc-telephone><dt>Téléphone</dt><dd data-telephone></dd></div>
+          <div><dt>Horaires</dt><dd>Du lundi au samedi, de 9&nbsp;h à 19&nbsp;h</dd></div>
+          <div><dt>Secteur</dt><dd>Lyon et Ouest lyonnais</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="pied">
+  <div class="enveloppe pied-ligne">
+    <p><strong>Ada Immobilier</strong> · Conseil immobilier indépendant à Lyon</p>
+    <p>Barème des honoraires disponible sur simple demande.</p>
+    <p>© 2026</p>
+  </div>
+</footer>
+
+<dialog id="fiche" class="fiche" aria-labelledby="fiche-titre"></dialog>
+
+<script src="js/biens.js"></script>
+<script src="js/facades.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
