@@ -44,3 +44,15 @@ Les formulaires (visite, estimation) ouvrent la messagerie du visiteur avec un m
 ## Mettre en ligne
 
 Le plus simple, gratuit : **GitHub Pages**. Dans le dépôt GitHub, allez dans *Settings → Pages*, choisissez la branche à publier et le dossier racine. Le site est en ligne quelques minutes plus tard. Netlify et Vercel fonctionnent aussi, par simple glisser-déposer du dossier.
+
+## Porte-monnaie revente
+
+Le dossier `porte-monnaie/` contient une appli à part pour suivre un achat-revente. Ouvrez `porte-monnaie/index.html` dans un navigateur, rien à installer.
+
+- **Le porte-monnaie**, en haut : on y met ses sous (« Mettre des sous »), chaque achat est déduit tout de suite, chaque vente y revient. Le solde n'est jamais tapé à la main, il se recalcule à partir des dépôts, retraits, achats et ventes.
+- **Stock** : chaque article acheté, avec ce qu'il a coûté (prix + frais), le prix de vente prévu et le bénéfice attendu. Au moment de l'achat, l'appli propose un prix de vente selon la marge visée (+30 %, +50 %, ×2…). Les articles en stock depuis plus de 30 jours sont signalés.
+- **Vendu !** : on indique le prix de vente et les frais (commission, envoi), l'appli affiche ce qui revient et le bénéfice.
+- **Ventes**, **Journal** (toutes les entrées et sorties d'argent, façon ticket de caisse), **Stats** (bénéfice par mois, marge moyenne, temps pour vendre, par catégorie) et **Calculette** de prix.
+- **Réglages** : nom de la boutique, marge visée, frais de vente habituels, export pour Excel (.csv), sauvegarde et restauration (.json).
+
+Ouverte depuis un fichier ou un hébergement classique, l'appli enregistre les données dans le navigateur (`localStorage`), sur cet appareil seulement : faites une sauvegarde de temps en temps. Publiée en artifact claude.ai, elle les enregistre dans le compte du propriétaire et reste privée.
