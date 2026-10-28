@@ -298,10 +298,10 @@
     }
     const depart = soldeAffiche;
     const debut = performance.now();
-    const duree = 700;
-    el.classList.remove('monte', 'descend');
+    const duree = 800;
+    el.classList.remove('brille');
     void el.offsetWidth;
-    el.classList.add(cible > depart ? 'monte' : 'descend');
+    el.classList.add('brille');
     const pas = (t) => {
       const p = Math.min(1, (t - debut) / duree);
       const v = depart + (cible - depart) * (1 - Math.pow(1 - p, 3));
@@ -353,8 +353,7 @@
     };
     $('#pied-sauvegarde').textContent = pied[etat.mode];
     $('#r-ou').textContent = pied[etat.mode];
-    const exemples = [...etat.articles.values(), ...etat.mouvements.values()].some((x) => x.exemple);
-    $('#bandeau-exemples').hidden = !exemples || etat.mode === 'lecture';
+    $('#pf-frappe').textContent = nom;
     $('#bandeau-lecture').hidden = etat.mode !== 'lecture';
   }
 
@@ -369,8 +368,116 @@
     $('#outils-stock').hidden = true;
   }
 
+  /* Les billets et les pièces qui dépassent du porte-monnaie */
+
+  const BILLETS = [200, 100, 50, 20, 10, 5];
+  const PIECES = [200, 100, 50, 20, 10, 5, 2, 1]; // en centimes
+  const BILLETS_VISIBLES = 9;
+  const PIECES_VISIBLES = 6;
+
+  function decomposer(montant) {
+    let reste = Math.max(0, Math.round(montant * 100));
+    const billets = [];
+    const pieces = [];
+    for (const v of BILLETS) {
+      const n = Math.floor(reste / (v * 100));
+      for (let i = 0; i < n; i += 1) billets.push(v);
+      reste -= n * v * 100;
+    }
+    for (const v of PIECES) {
+      const n = Math.floor(reste / v);
+      for (let i = 0; i < n; i += 1) pieces.push(v);
+      reste -= n * v;
+    }
+    return { billets, pieces };
+  }
+
+  // Un petit décalage propre à chaque billet, toujours le même, pour que la liasse ait l'air vraie.
+  function bruit(cle, amplitude) {
+    let h = 0;
+    for (const c of cle) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return ((h % 1000) / 1000 - 0.5) * 2 * amplitude;
+  }
+
+  function avecCles(valeurs) {
+    const vus = {};
+    return valeurs.map((v) => {
+      vus[v] = (vus[v] || 0) + 1;
+      return { v, cle: `${v}-${vus[v]}` };
+    });
+  }
+
+  function synchroniser(conteneur, elements, creer, placer) {
+    const existants = new Map();
+    for (const el of conteneur.children) if (!el.classList.contains('sort')) existants.set(el.dataset.cle, el);
+    elements.forEach((item, i) => {
+      let el = existants.get(item.cle);
+      if (el) {
+        existants.delete(item.cle);
+      } else {
+        el = creer(item);
+        el.dataset.cle = item.cle;
+        el.classList.add('entre');
+        el.style.animationDelay = (premierRendu ? 120 + i * 90 : i * 40) + 'ms';
+        el.addEventListener('animationend', () => el.classList.remove('entre'), { once: true });
+        conteneur.appendChild(el);
+      }
+      // L'ordre d'empilement passe par z-index : déplacer un nœud relancerait ses animations.
+      el.style.zIndex = String(i + 1);
+      placer(el, item, i, elements.length);
+    });
+    let k = 0;
+    for (const el of existants.values()) {
+      el.classList.remove('entre');
+      el.classList.add('sort');
+      el.style.animationDelay = k * 50 + 'ms';
+      k += 1;
+      const retirer = () => el.remove();
+      el.addEventListener('animationend', retirer, { once: true });
+      setTimeout(retirer, 1400);
+    }
+  }
+
+  let premierRendu = true;
+
+  function rendreBillets(solde) {
+    const { billets, pieces } = decomposer(solde);
+    const visibles = avecCles(billets.slice(0, BILLETS_VISIBLES));
+    synchroniser($('#billets'), visibles, ({ v }) => {
+      const el = document.createElement('div');
+      el.className = `billet b${v}`;
+      el.innerHTML = `<span class="billet-valeur">${v}</span><span class="billet-etoiles"></span><span class="billet-euro">EURO</span><span class="billet-coin">${v}</span>`;
+      return el;
+    }, (el, { cle }, i, n) => {
+      // En éventail : chaque billet décale le suivant assez pour laisser voir sa valeur.
+      const milieu = (n - 1) / 2;
+      const ecart = i - milieu;
+      const pas = n > 1 ? Math.min(14, 50 / (n - 1)) : 0;
+      el.style.setProperty('--x', (ecart * pas + bruit(cle, 1.2)).toFixed(2) + '%');
+      el.style.setProperty('--y', (Math.abs(ecart) * Math.min(4, pas * 0.35) + bruit(cle + 'y', 3)).toFixed(1) + '%');
+      el.style.setProperty('--r', (ecart * Math.min(6, pas * 0.5) + bruit(cle + 'r', 2)).toFixed(2) + 'deg');
+    });
+    const reste = billets.length - visibles.length;
+    const plus = $('#pf-plus');
+    plus.hidden = reste <= 0;
+    plus.textContent = reste > 0 ? `+${pluriel(reste, 'billet')}` : '';
+
+    const pieceVisibles = avecCles(pieces.slice(0, PIECES_VISIBLES));
+    synchroniser($('#pf-pieces'), pieceVisibles, ({ v }) => {
+      const el = document.createElement('span');
+      el.className = `piece-euro p${v}`;
+      el.textContent = v >= 100 ? `${v / 100}€` : `${v}c`;
+      return el;
+    }, (el, { cle }, i) => {
+      el.style.setProperty('--i', i);
+      el.style.setProperty('--r', bruit(cle, 25).toFixed(0) + 'deg');
+    });
+    premierRendu = false;
+  }
+
   function rendrePorteMonnaie(b) {
     animerSolde(b.solde);
+    rendreBillets(b.solde);
     const pm = $('#portemonnaie');
     pm.classList.toggle('dans-le-rouge', b.solde < 0);
     let note;
@@ -428,36 +535,28 @@
     const dort = age >= JOURS_DORT;
     const bp = beneficePrevu(a);
     const meta = [a.categorie, a.lieuAchat ? 'acheté sur ' + a.lieuAchat : ''].filter(Boolean).map(esc).join(' · ');
-    const puceAge = dort
-      ? `<span class="puce puce-alerte" title="Acheté le ${esc(dateLongue(a.dateAchat))}">Dort depuis ${age} j</span>`
-      : `<span class="puce" title="Acheté le ${esc(dateLongue(a.dateAchat))}">${age === 0 ? "Acheté aujourd'hui" : `En stock depuis ${age} j`}</span>`;
-    let puceBenef;
-    if (bp === null) puceBenef = '<span class="puce">Pas encore de prix de vente</span>';
-    else puceBenef = `<span class="puce ${bp >= 0 ? 'puce-gain' : 'puce-perte'}">${bp >= 0 ? 'Bénéfice prévu' : 'Perte prévue'} ${eurosSigne(bp)}${cout(a) > 0 ? ' · ' + pct(marge(bp, cout(a))) : ''}</span>`;
+    const ligneBenef = bp === null
+      ? '<div><dt>Bénéfice prévu</dt><dd>pas encore de prix</dd></div>'
+      : `<div><dt>${bp >= 0 ? 'Bénéfice prévu' : 'Perte prévue'}</dt><dd class="${bp >= 0 ? 'gain' : 'perte'}">${eurosSigne(bp)}${cout(a) > 0 ? ` <small>${pct(marge(bp, cout(a)))}</small>` : ''}</dd></div>`;
     return `<li class="etiquette${dort ? ' dort' : ''}">
-      <div class="etq-tete">
+      <svg class="etq-ficelle" viewBox="0 0 40 120" preserveAspectRatio="none" aria-hidden="true"><path d="M40 60 C 26 60, 12 48, 6 22 S 10 2, 2 0"></path><path d="M40 60 C 28 64, 16 80, 10 104 S 4 118, 0 120"></path></svg>
+      <div class="etq-papier">
+        <span class="etq-trou" aria-hidden="true"></span>
+        ${dort ? `<span class="tampon" aria-hidden="true">Dort<br>${age} j</span>` : ''}
         <h3 class="etq-nom">${esc(a.nom)}</h3>
-        ${a.exemple ? '<span class="marque-exemple">exemple</span>' : ''}
-      </div>
-      <p class="etq-meta">${meta || 'Sans catégorie'}</p>
-      <div class="etq-prix">
-        <div class="etq-col">
-          <span class="etq-label">Payé</span>
-          <span class="etq-valeur">${euros(cout(a))}</span>
-          ${a.fraisAchat ? `<span class="etq-sous">dont ${euros(a.fraisAchat)} de frais</span>` : ''}
+        <p class="etq-meta">${meta || 'Sans catégorie'}</p>
+        <p class="etq-marqueur" title="Prix de vente prévu">${a.prixPrevu ? euros(a.prixPrevu) : '? €'}</p>
+        <dl class="etq-lignes">
+          <div><dt>Payé</dt><dd>${euros(cout(a))}${a.fraisAchat ? ` <small>dont ${euros(a.fraisAchat)} de frais</small>` : ''}</dd></div>
+          ${ligneBenef}
+          <div><dt>En stock</dt><dd title="Acheté le ${esc(dateLongue(a.dateAchat))}">${age === 0 ? "depuis aujourd'hui" : `depuis ${pluriel(age, 'jour')}`}</dd></div>
+        </dl>
+        ${a.note ? `<p class="etq-note">${esc(a.note)}</p>` : ''}
+        <div class="etq-actions ecrit">
+          <button class="bouton bouton-gain" type="button" data-action="vendre" data-id="${esc(id)}">Vendu&nbsp;!</button>
+          <button class="bouton bouton-encre" type="button" data-action="modifier" data-id="${esc(id)}">Modifier</button>
+          <button class="bouton bouton-lien" type="button" data-action="supprimer" data-id="${esc(id)}" aria-label="Supprimer ${esc(a.nom)}">Supprimer</button>
         </div>
-        <span class="etq-fleche" aria-hidden="true">→</span>
-        <div class="etq-col">
-          <span class="etq-label">Prix prévu</span>
-          <span class="etq-valeur etq-cible">${a.prixPrevu ? euros(a.prixPrevu) : '—'}</span>
-        </div>
-      </div>
-      <div class="etq-puces">${puceBenef}${puceAge}</div>
-      ${a.note ? `<p class="etq-note">${esc(a.note)}</p>` : ''}
-      <div class="etq-actions ecrit">
-        <button class="bouton bouton-gain" type="button" data-action="vendre" data-id="${esc(id)}">Vendu&nbsp;!</button>
-        <button class="bouton bouton-discret" type="button" data-action="modifier" data-id="${esc(id)}">Modifier</button>
-        <button class="bouton bouton-lien" type="button" data-action="supprimer" data-id="${esc(id)}" aria-label="Supprimer ${esc(a.nom)}">Supprimer</button>
       </div>
     </li>`;
   }
@@ -482,20 +581,23 @@
       vide.innerHTML = '<p class="vide-titre">Rien à afficher.</p><p>Ce porte-monnaie est privé.</p>';
     } else if (b.nbStock) {
       vide.innerHTML = `<p class="vide-titre">Rien ne correspond à « ${esc(etat.recherche)} ».</p><p>Essaie un autre mot.</p>`;
-    } else if (!etat.articles.size && !etat.mouvements.size) {
-      vide.innerHTML = `
-        <p class="vide-titre">Ton porte-monnaie est vide.</p>
-        <ol class="vide-etapes">
-          <li><strong>Mets tes sous dedans</strong> : l'argent que tu consacres à l'achat-revente.</li>
-          <li><strong>Enregistre chaque achat</strong> : son prix est déduit tout de suite, et tu fixes ton prix de vente.</li>
-          <li><strong>Appuie sur « Vendu ! »</strong> quand il part : l'argent revient et ton bénéfice s'affiche.</li>
-        </ol>
-        <div class="vide-boutons">
-          <button class="bouton bouton-or" type="button" data-ouvrir="depot">Mettre mes premiers sous</button>
-          <button class="bouton bouton-discret" type="button" id="charger-exemples">Voir avec des exemples</button>
-        </div>`;
     } else {
-      vide.innerHTML = `<p class="vide-titre">Tout est vendu.</p><p>Ton stock est vide. Enregistre ton prochain achat avec <strong>J'ai acheté un truc</strong>.</p>`;
+      const premier = !etat.articles.size;
+      const titre = premier ? 'Ton stock est vide.' : 'Tout est vendu.';
+      const texte = b.solde > 0
+        ? `Tu as ${euros(b.solde)} pour acheter. Chaque achat est déduit tout de suite, tu fixes ton prix de vente, et quand il part, tu appuies sur « Vendu ! ».`
+        : 'Mets des sous dans le porte-monnaie, puis enregistre ton premier achat.';
+      vide.innerHTML = `
+        <div class="vide-etiquette" aria-hidden="true"><span class="etq-trou"></span><span class="vide-marqueur">${premier ? '1er truc ?' : 'Le suivant ?'}</span></div>
+        <div class="vide-texte">
+          <p class="vide-titre">${titre}</p>
+          <p>${texte}</p>
+          <div class="vide-boutons ecrit">
+            ${b.solde > 0
+              ? `<button class="bouton bouton-or" type="button" data-ouvrir="achat">J'ai acheté un truc</button>`
+              : `<button class="bouton bouton-or" type="button" data-ouvrir="depot">Mettre des sous</button>`}
+          </div>
+        </div>`;
     }
   }
 
@@ -523,7 +625,7 @@
       ].filter(Boolean).map(esc).join(' · ');
       return `<li class="vente">
         <div class="vente-texte">
-          <p class="vente-nom">${esc(a.nom)}${a.exemple ? ' <span class="marque-exemple">exemple</span>' : ''}</p>
+          <p class="vente-nom">${esc(a.nom)}</p>
           <p class="vente-sous">${sous}</p>
         </div>
         <dl class="vente-chiffres">
@@ -547,13 +649,13 @@
       const retrait = m.type === 'retrait';
       lignes.push({
         id, col: 'mouvements', type: retrait ? 'retrait' : 'depot', date: m.date, ordre: m.cree || 0,
-        libelle: m.note || (retrait ? 'Retrait' : 'Dépôt'), montant: retrait ? -m.montant : m.montant, exemple: m.exemple,
+        libelle: m.note || (retrait ? 'Retrait' : 'Dépôt'), montant: retrait ? -m.montant : m.montant,
       });
     }
     for (const [id, a] of etat.articles) {
-      lignes.push({ id, type: 'achat', date: a.dateAchat, ordre: a.cree || 0, libelle: a.nom, montant: -cout(a), exemple: a.exemple });
+      lignes.push({ id, type: 'achat', date: a.dateAchat, ordre: a.cree || 0, libelle: a.nom, montant: -cout(a) });
       if (a.statut === 'vendu') {
-        lignes.push({ id, type: 'vente', date: a.dateVente, ordre: a.venduLe || 0, libelle: a.nom, montant: encaisse(a), exemple: a.exemple });
+        lignes.push({ id, type: 'vente', date: a.dateVente, ordre: a.venduLe || 0, libelle: a.nom, montant: encaisse(a) });
       }
     }
     lignes.sort((x, y) => comparer(x.date, y.date) || x.ordre - y.ordre);
@@ -1264,31 +1366,6 @@
     }
   }
 
-  async function chargerExemples() {
-    const { articles, mouvements } = window.PM_EXEMPLES(aujourdhui());
-    try {
-      await Stockage.lot([
-        ...Object.entries(mouvements).map(([id, data]) => ({ col: 'mouvements', id, data })),
-        ...Object.entries(articles).map(([id, data]) => ({ col: 'articles', id, data })),
-      ]);
-    } catch (err) {
-      toast(messageErreur(err));
-    }
-  }
-
-  async function viderExemples() {
-    const operations = [];
-    for (const [id, a] of etat.articles) if (a.exemple) operations.push({ col: 'articles', id, data: null });
-    for (const [id, m] of etat.mouvements) if (m.exemple) operations.push({ col: 'mouvements', id, data: null });
-    try {
-      await Stockage.lot(operations);
-      soldeAffiche = null;
-      toast('Exemples effacés. Commence par mettre tes sous dans le porte-monnaie.');
-    } catch (err) {
-      toast(messageErreur(err));
-    }
-  }
-
   /* Calculette */
 
   // Tant que la personne n'y touche pas, la calculette reprend les frais de vente des réglages.
@@ -1367,7 +1444,6 @@
         fermer(e.target.closest('dialog'));
         return;
       }
-      if (e.target.id === 'charger-exemples') chargerExemples();
       if (e.target.id === 'journal-plus') {
         etat.journalMax += 80;
         rendreJournal();
@@ -1433,7 +1509,6 @@
       if (fichier) importerJson(fichier);
     });
     $('#tout-effacer').addEventListener('click', toutEffacer);
-    $('#vider-exemples').addEventListener('click', viderExemples);
 
     $('#toast-action').addEventListener('click', () => {
       const faire = actionToast;

@@ -49,8 +49,8 @@ Le plus simple, gratuit : **GitHub Pages**. Dans le dépôt GitHub, allez dans *
 
 Le dossier `porte-monnaie/` contient une appli à part pour suivre un achat-revente. Ouvrez `porte-monnaie/index.html` dans un navigateur, rien à installer.
 
-- **Le porte-monnaie**, en haut : on y met ses sous (« Mettre des sous »), chaque achat est déduit tout de suite, chaque vente y revient. Le solde n'est jamais tapé à la main, il se recalcule à partir des dépôts, retraits, achats et ventes.
-- **Stock** : chaque article acheté, avec ce qu'il a coûté (prix + frais), le prix de vente prévu et le bénéfice attendu. Au moment de l'achat, l'appli propose un prix de vente selon la marge visée (+30 %, +50 %, ×2…). Les articles en stock depuis plus de 30 jours sont signalés.
+- **Le porte-monnaie**, en haut : un porte-monnaie en cuir dont les billets et les pièces qui dépassent correspondent au solde (75 € = un billet de 50, un de 20, un de 5). On y met ses sous (« Mettre des sous »), chaque achat est déduit tout de suite et fait s'envoler les billets, chaque vente en fait revenir. Le solde n'est jamais tapé à la main, il se recalcule à partir des dépôts, retraits, achats et ventes.
+- **Stock** : chaque article acheté sur une étiquette kraft, avec le prix de vente prévu écrit au marqueur, ce qu'il a coûté (prix + frais) et le bénéfice attendu. Au moment de l'achat, l'appli propose un prix de vente selon la marge visée (+30 %, +50 %, ×2…). Les articles en stock depuis plus de 30 jours sont signalés.
 - **Vendu !** : on indique le prix de vente et les frais (commission, envoi), l'appli affiche ce qui revient et le bénéfice.
 - **Ventes**, **Journal** (toutes les entrées et sorties d'argent, façon ticket de caisse), **Stats** (bénéfice par mois, marge moyenne, temps pour vendre, par catégorie) et **Calculette** de prix.
 - **Réglages** : nom de la boutique, marge visée, frais de vente habituels, export pour Excel (.csv), sauvegarde et restauration (.json).

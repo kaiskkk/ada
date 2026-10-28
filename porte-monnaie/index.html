@@ -8,7 +8,7 @@
 <meta name="description" content="Le porte-monnaie de ton achat-revente : chaque achat se déduit, chaque vente ajoute ton bénéfice.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Martian+Mono:wdth,wght@87.5..112.5,400..600&family=Permanent+Marker&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,67 +21,86 @@
   </div>
 </div>
 
-<header class="haut">
+<header class="scene">
   <div class="enveloppe">
     <div class="haut-ligne">
       <p class="marque" id="nom-boutique">Ma revente</p>
       <span class="sauvegarde" id="sauvegarde">Ouverture…</span>
-      <button class="bouton bouton-discret bouton-petit" type="button" id="ouvrir-reglages">Réglages</button>
+      <button class="bouton bouton-fantome bouton-petit" type="button" id="ouvrir-reglages">
+        <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+        Réglages
+      </button>
     </div>
 
-    <section class="portemonnaie" id="portemonnaie" aria-labelledby="pm-titre">
-      <span class="pm-fermoir" aria-hidden="true"></span>
-      <div class="pm-corps">
-        <div class="pm-solde-bloc">
-          <h1 class="pm-titre" id="pm-titre">Dans le porte-monnaie</h1>
-          <p class="pm-solde" id="solde">—</p>
-          <p class="pm-note" id="pm-note">Ouverture du porte-monnaie…</p>
-        </div>
-        <div class="pm-actions ecrit">
-          <button class="bouton bouton-or" type="button" data-ouvrir="achat">J'ai acheté un truc</button>
-          <div class="pm-actions-ligne">
-            <button class="bouton bouton-cuir" type="button" data-ouvrir="depot">+ Mettre des sous</button>
-            <button class="bouton bouton-cuir" type="button" data-ouvrir="retrait">− Retirer</button>
+    <div class="scene-grille">
+      <section class="portefeuille" id="portemonnaie" aria-labelledby="pm-titre">
+        <div class="pf-dos" aria-hidden="true"></div>
+        <div class="pf-billets" id="billets" aria-hidden="true"></div>
+        <div class="pf-face-ombre">
+          <div class="pf-face">
+            <h1 class="pf-label" id="pm-titre">Dans le porte-monnaie</h1>
+            <p class="pf-solde" id="solde">—</p>
+            <p class="pf-note" id="pm-note">Ouverture du porte-monnaie…</p>
+            <p class="pf-frappe" id="pf-frappe" aria-hidden="true">Ma revente</p>
           </div>
         </div>
-      </div>
-      <dl class="pm-chiffres">
-        <div>
-          <dt>Bloqué dans le stock</dt>
-          <dd id="pm-stock">—</dd>
-          <dd class="pm-detail" id="pm-stock-detail"></dd>
-        </div>
-        <div>
-          <dt>Bénéfice encaissé</dt>
-          <dd id="pm-benef">—</dd>
-          <dd class="pm-detail" id="pm-benef-detail"></dd>
-        </div>
-        <div>
-          <dt>Si tout se vend au prix prévu</dt>
-          <dd id="pm-potentiel">—</dd>
-          <dd class="pm-detail" id="pm-potentiel-detail"></dd>
-        </div>
-      </dl>
-      <div class="pieces" id="pieces" aria-hidden="true"></div>
-    </section>
+        <div class="pf-pieces" id="pf-pieces" aria-hidden="true"></div>
+        <p class="pf-plus" id="pf-plus" hidden></p>
+        <div class="pieces" id="pieces" aria-hidden="true"></div>
+      </section>
 
-    <p class="bandeau" id="bandeau-exemples" hidden>
-      <span>Tu regardes des <strong>exemples</strong> pour voir comment ça marche. Ce ne sont pas tes chiffres.</span>
-      <button class="bouton bouton-petit ecrit" type="button" id="vider-exemples">Effacer les exemples et commencer</button>
-    </p>
+      <div class="scene-cote">
+        <div class="pm-actions ecrit">
+          <button class="bouton bouton-or bouton-geant" type="button" data-ouvrir="achat">
+            <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 8h13l-1.2 12H6.7L5.5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+            J'ai acheté un truc
+          </button>
+          <div class="pm-actions-ligne">
+            <button class="bouton bouton-fantome" type="button" data-ouvrir="depot">
+              <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Mettre des sous
+            </button>
+            <button class="bouton bouton-fantome" type="button" data-ouvrir="retrait">
+              <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+              Retirer
+            </button>
+          </div>
+        </div>
+        <dl class="pm-chiffres">
+          <div>
+            <dt>Bloqué dans le stock</dt>
+            <dd class="pm-valeur" id="pm-stock">—</dd>
+            <dd class="pm-detail" id="pm-stock-detail"></dd>
+          </div>
+          <div>
+            <dt>Bénéfice encaissé</dt>
+            <dd class="pm-valeur" id="pm-benef">—</dd>
+            <dd class="pm-detail" id="pm-benef-detail"></dd>
+          </div>
+          <div>
+            <dt>Si tout se vend au prix prévu</dt>
+            <dd class="pm-valeur" id="pm-potentiel">—</dd>
+            <dd class="pm-detail" id="pm-potentiel-detail"></dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
     <p class="bandeau" id="bandeau-lecture" hidden>
-      <span>Ce porte-monnaie est privé : seul son propriétaire peut voir et modifier les comptes.</span>
+      Ce porte-monnaie est privé : seul son propriétaire peut voir et modifier les comptes.
     </p>
   </div>
 </header>
 
 <nav class="onglets" aria-label="Sections">
-  <div class="enveloppe onglets-ligne">
-    <a href="#stock" data-vue="stock">Stock <span class="compte" id="compte-stock"></span></a>
-    <a href="#ventes" data-vue="ventes">Ventes <span class="compte" id="compte-ventes"></span></a>
-    <a href="#journal" data-vue="journal">Journal</a>
-    <a href="#stats" data-vue="stats">Stats</a>
-    <a href="#calcul" data-vue="calcul">Calculette</a>
+  <div class="enveloppe">
+    <div class="onglets-ligne">
+      <a href="#stock" data-vue="stock">Stock <span class="compte" id="compte-stock"></span></a>
+      <a href="#ventes" data-vue="ventes">Ventes <span class="compte" id="compte-ventes"></span></a>
+      <a href="#journal" data-vue="journal">Journal</a>
+      <a href="#stats" data-vue="stats">Stats</a>
+      <a href="#calcul" data-vue="calcul">Calculette</a>
+    </div>
   </div>
 </nav>
 
@@ -189,8 +208,10 @@
         </label>
       </form>
       <div class="calc-resultat" aria-live="polite">
-        <p class="calc-label">Mets-le à</p>
-        <p class="calc-prix" id="c-prix">—</p>
+        <div class="calc-etiquette">
+          <p class="calc-label">Mets-le à</p>
+          <p class="calc-prix" id="c-prix">—</p>
+        </div>
         <p class="calc-detail" id="c-detail"></p>
         <div class="tableau-defile">
           <table class="echelle" id="c-echelle"></table>
@@ -220,7 +241,7 @@
     <div class="fenetre-corps">
       <label class="champ" for="a-nom">
         <span>Quoi&nbsp;?</span>
-        <input id="a-nom" required placeholder="ex. Nike Dunk Low taille 42" list="liste-noms">
+        <input id="a-nom" required placeholder="ex. Nike Dunk Low taille 42">
       </label>
       <div class="grille-2">
         <label class="champ" for="a-prix">
@@ -271,7 +292,7 @@
       <p class="erreur" id="a-erreur" role="alert" hidden></p>
     </div>
     <footer class="fenetre-pied">
-      <button class="bouton bouton-discret" type="button" data-fermer>Annuler</button>
+      <button class="bouton bouton-fantome" type="button" data-fermer>Annuler</button>
       <button class="bouton bouton-or" type="submit" id="a-valider">Enregistrer l'achat</button>
     </footer>
   </form>
@@ -310,7 +331,7 @@
       <p class="erreur" id="v-erreur" role="alert" hidden></p>
     </div>
     <footer class="fenetre-pied">
-      <button class="bouton bouton-discret" type="button" data-fermer>Annuler</button>
+      <button class="bouton bouton-fantome" type="button" data-fermer>Annuler</button>
       <button class="bouton bouton-gain" type="submit" id="v-valider">Encaisser</button>
     </footer>
   </form>
@@ -329,11 +350,11 @@
         <span class="saisie-euro saisie-grande"><input id="m-montant" inputmode="decimal" required placeholder="0"></span>
       </label>
       <div class="raccourcis" role="group" aria-label="Montants rapides">
+        <button type="button" class="raccourci" data-montant="5">5&nbsp;€</button>
+        <button type="button" class="raccourci" data-montant="10">10&nbsp;€</button>
         <button type="button" class="raccourci" data-montant="20">20&nbsp;€</button>
         <button type="button" class="raccourci" data-montant="50">50&nbsp;€</button>
         <button type="button" class="raccourci" data-montant="100">100&nbsp;€</button>
-        <button type="button" class="raccourci" data-montant="200">200&nbsp;€</button>
-        <button type="button" class="raccourci" data-montant="500">500&nbsp;€</button>
       </div>
       <div class="grille-2">
         <label class="champ" for="m-note">
@@ -349,7 +370,7 @@
       <p class="erreur" id="m-erreur" role="alert" hidden></p>
     </div>
     <footer class="fenetre-pied">
-      <button class="bouton bouton-discret" type="button" data-fermer>Annuler</button>
+      <button class="bouton bouton-fantome" type="button" data-fermer>Annuler</button>
       <button class="bouton bouton-or" type="submit" id="m-valider">Ajouter</button>
     </footer>
   </form>
@@ -364,8 +385,8 @@
     </header>
     <div class="fenetre-corps">
       <label class="champ" for="r-nom">
-        <span>Nom de ta boutique</span>
-        <input id="r-nom" maxlength="40" placeholder="Ma revente">
+        <span>Nom de ta boutique <small>(gravé sur le porte-monnaie)</small></span>
+        <input id="r-nom" maxlength="28" placeholder="Ma revente">
       </label>
       <div class="grille-2">
         <label class="champ" for="r-marge">
@@ -384,9 +405,9 @@
         <h3>Tes données</h3>
         <p class="champ-aide" id="r-ou"></p>
         <div class="reglages-boutons">
-          <button class="bouton bouton-discret" type="button" id="export-csv">Exporter pour Excel (.csv)</button>
-          <button class="bouton bouton-discret" type="button" id="export-json">Faire une sauvegarde (.json)</button>
-          <label class="bouton bouton-discret ecrit" for="import-json">Restaurer une sauvegarde</label>
+          <button class="bouton bouton-fantome" type="button" id="export-csv">Exporter pour Excel (.csv)</button>
+          <button class="bouton bouton-fantome" type="button" id="export-json">Faire une sauvegarde (.json)</button>
+          <label class="bouton bouton-fantome ecrit" for="import-json">Restaurer une sauvegarde</label>
           <input class="visuellement-cache ecrit" type="file" id="import-json" accept=".json,application/json">
         </div>
       </div>
@@ -397,7 +418,7 @@
       </div>
     </div>
     <footer class="fenetre-pied">
-      <button class="bouton bouton-discret" type="button" data-fermer>Fermer</button>
+      <button class="bouton bouton-fantome" type="button" data-fermer>Fermer</button>
       <button class="bouton bouton-or ecrit" type="submit">Enregistrer</button>
     </footer>
   </form>
@@ -413,7 +434,7 @@
       <p id="confirmer-texte"></p>
     </div>
     <footer class="fenetre-pied">
-      <button class="bouton bouton-discret" type="button" id="confirmer-non">Non, garder</button>
+      <button class="bouton bouton-fantome" type="button" id="confirmer-non">Non, garder</button>
       <button class="bouton bouton-danger" type="submit" id="confirmer-oui">Oui</button>
     </footer>
   </form>
@@ -421,14 +442,12 @@
 
 <datalist id="liste-categories"></datalist>
 <datalist id="liste-lieux"></datalist>
-<datalist id="liste-noms"></datalist>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden>
   <span id="toast-texte"></span>
   <button class="toast-action" type="button" id="toast-action" hidden>Annuler</button>
 </div>
 
-<script src="exemples.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
