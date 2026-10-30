@@ -249,12 +249,40 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 .portefeuille {
+  --tx: 0deg;
+  --ty: 0deg;
+  --lx: 30%;
+  --ly: 15%;
+  --sx: 0%;
   position: relative;
   width: 100%;
   max-width: 600px;
   aspect-ratio: 1.32;
   margin-inline: auto;
+  cursor: pointer;
+  transform: perspective(1100px) rotateX(var(--tx)) rotateY(var(--ty));
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
 }
+/* Le reflet de lumière sur le cuir */
+.pf-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(45% 70% at var(--lx) var(--ly), rgba(255, 228, 190, 0.2), transparent 70%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  transition: background-position 0.3s ease;
+}
+/* On secoue le porte-monnaie : les billets frémissent */
+.portefeuille.secoue .billet:not(.entre):not(.sort) { animation: frisson 0.6s ease; }
+.portefeuille.secoue .piece-euro:not(.entre):not(.sort) { animation: sautille 0.5s ease; }
+@keyframes frisson {
+  25% { transform: translate(calc(-50% + var(--x)), calc(var(--y) - 14%)) rotate(calc(var(--r) - 5deg)); }
+  55% { transform: translate(calc(-50% + var(--x)), calc(var(--y) - 4%)) rotate(calc(var(--r) + 4deg)); }
+  80% { transform: translate(calc(-50% + var(--x)), calc(var(--y) - 7%)) rotate(calc(var(--r) - 1deg)); }
+}
+@keyframes sautille { 40% { transform: translateY(-14px) rotate(calc(var(--r) + 40deg)); } }
 
 /* Le dos du porte-monnaie, derrière les billets */
 .pf-dos {
@@ -443,7 +471,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   white-space: nowrap;
   background: linear-gradient(100deg, #b07a22 0%, #fbe7a8 18%, #f3c04f 34%, #9c6a1c 52%, #f6d47c 70%, #fff3c6 80%, #c99234 100%);
   background-size: 220% 100%;
-  background-position: 0 0;
+  background-position: var(--sx, 0%) 0;
+  transition: background-position 0.35s ease;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -834,7 +863,7 @@ body.barre-visible .onglets { top: calc(58px + env(safe-area-inset-top, 0px)); }
   pointer-events: none;
 }
 .etq-papier > * { position: relative; z-index: 1; }
-.etq-papier > .etq-trou, .etq-papier > .tampon { position: absolute; }
+.etq-papier > .etq-trou { position: absolute; }
 
 .etq-trou {
   position: absolute;
@@ -849,7 +878,6 @@ body.barre-visible .onglets { top: calc(58px + env(safe-area-inset-top, 0px)); }
 }
 
 .etq-nom {
-  padding-right: 54px;
   font-size: 18px;
   font-weight: 800;
   line-height: 1.25;
@@ -917,9 +945,8 @@ body.barre-visible .onglets { top: calc(58px + env(safe-area-inset-top, 0px)); }
 
 /* Le tampon « dort » */
 .tampon {
-  position: absolute;
-  top: 14px;
-  right: 12px;
+  flex: none;
+  margin-left: auto;
   padding: 4px 8px;
   border: 2.5px solid var(--perte-kraft);
   border-radius: 6px;
@@ -1584,16 +1611,518 @@ input::placeholder, textarea::placeholder { color: var(--creme-3); opacity: 0.8;
 .pied { padding-block: 0 44px; font-size: 13px; color: var(--creme-3); }
 .pied p { max-width: 70ch; }
 
+
+/* ---------- En-tête : rang et son ---------- */
+
+.rang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(243, 192, 79, 0.35);
+  background: linear-gradient(180deg, rgba(243, 192, 79, 0.16), rgba(243, 192, 79, 0.05));
+  color: var(--or-clair);
+  font-weight: 800;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.rang .icone { width: 17px; height: 17px; }
+.rang:hover { border-color: var(--or); }
+
+.bouton-icone { width: 38px; padding: 0; }
+.bouton-icone .son-off { display: none; }
+.bouton-icone[aria-pressed="false"] .son-on { display: none; }
+.bouton-icone[aria-pressed="false"] .son-off { display: block; }
+.bouton-icone[aria-pressed="false"] { color: var(--creme-3); }
+
+/* ---------- Objectif ---------- */
+
+.objectif {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: var(--rayon);
+  border: 1px solid var(--trait);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+}
+.objectif-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.objectif-label {
+  font-family: var(--police-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--creme-3);
+}
+.objectif-cible {
+  font-weight: 900;
+  font-stretch: 115%;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--or-clair);
+  font-variant-numeric: tabular-nums;
+}
+.objectif-texte { font-size: 13px; color: var(--creme-2); }
+.objectif.atteint .objectif-cible { color: var(--gain); }
+
+.jauge {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--nuit-3);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.jauge-remplie {
+  --p: 0%;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--p);
+  min-width: 6px;
+  border-radius: inherit;
+  background:
+    linear-gradient(100deg, transparent 0 40%, rgba(255, 255, 255, 0.45) 50%, transparent 60% 100%) 0 0 / 250% 100% no-repeat,
+    linear-gradient(180deg, var(--or-clair), var(--or) 55%, var(--or-fonce));
+  box-shadow: 0 0 14px rgba(243, 192, 79, 0.55);
+  transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: reflet-jauge 3.2s ease-in-out infinite;
+}
+.objectif.atteint .jauge-remplie {
+  background:
+    linear-gradient(100deg, transparent 0 40%, rgba(255, 255, 255, 0.45) 50%, transparent 60% 100%) 0 0 / 250% 100% no-repeat,
+    linear-gradient(180deg, #9cf0bf, var(--gain) 55%, var(--gain-plein));
+  box-shadow: 0 0 14px rgba(95, 216, 149, 0.55);
+}
+@keyframes reflet-jauge {
+  0%, 30% { background-position: 150% 0, 0 0; }
+  70%, 100% { background-position: -100% 0, 0 0; }
+}
+.jauge-fine { height: 8px; }
+
+.objectif-vide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--trait);
+  border-radius: var(--rayon);
+  background: transparent;
+  color: var(--creme-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.objectif-vide .icone { width: 26px; height: 26px; color: var(--or); }
+.objectif-vide:hover { border-color: var(--or); color: var(--creme); }
+
+/* ---------- Étiquettes : détails, photo, Claude, vente ---------- */
+
+.etq-details {
+  margin-top: -6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--kraft-encre);
+}
+.etq-prix-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.etiquette.avec-photo .etq-nom,
+.etiquette.avec-photo .etq-details,
+.etiquette.avec-photo .etq-meta { padding-right: 96px; }
+
+.polaroid {
+  position: absolute;
+  top: -12px;
+  right: 14px;
+  z-index: 3;
+  width: 104px;
+  padding: 6px 6px 18px;
+  border: 0;
+  border-radius: 2px;
+  background: #fbfaf6;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  transform: rotate(5deg);
+  cursor: zoom-in;
+  transition: transform 0.25s ease;
+}
+.polaroid::before {
+  /* Le bout de scotch */
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 46px;
+  height: 18px;
+  margin-left: -23px;
+  background: rgba(255, 248, 225, 0.55);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transform: rotate(-6deg);
+  backdrop-filter: blur(1px);
+}
+.polaroid img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: #ddd6c8;
+}
+.polaroid.casse img { visibility: hidden; }
+.polaroid:hover { transform: rotate(1deg) scale(1.06); }
+
+.bouton-claude {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 10px;
+  background: var(--kraft-encre);
+  color: var(--kraft);
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.8);
+}
+.bouton-claude .icone { color: var(--or); }
+.bouton-claude:hover { background: #3a2c1f; }
+
+/* Le tampon « Vendu » qui claque, puis l'étiquette s'envole */
+.etiquette.vendue::after {
+  content: "VENDU";
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 5;
+  padding: 6px 18px;
+  border: 5px solid #c33a1c;
+  border-radius: 10px;
+  color: #c33a1c;
+  font-family: var(--police);
+  font-weight: 900;
+  font-stretch: 125%;
+  font-size: 44px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  background: rgba(255, 240, 225, 0.15);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  animation: tampon-claque 0.28s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.etiquette.vendue { animation: etiquette-secousse 0.3s 0.12s ease, etiquette-part 0.5s 0.62s cubic-bezier(0.5, 0, 0.8, 0.4) forwards; }
+@keyframes tampon-claque {
+  from { opacity: 0; transform: translate(-50%, -50%) rotate(-24deg) scale(2.8); }
+  to { opacity: 1; transform: translate(-50%, -50%) rotate(-14deg) scale(1); }
+}
+@keyframes etiquette-secousse {
+  30% { transform: translate(2px, 3px) rotate(0.4deg); }
+  60% { transform: translate(-2px, -1px) rotate(-0.3deg); }
+}
+@keyframes etiquette-part {
+  to { transform: translate(60px, -120px) rotate(10deg) scale(0.7); opacity: 0; }
+}
+
+/* ---------- Fenêtre d'achat : photo, champs ---------- */
+
+.photo-champ {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1.5px dashed var(--trait);
+  border-radius: var(--rayon);
+}
+.polaroid-apercu {
+  position: relative;
+  top: 0;
+  right: 0;
+  flex: none;
+  width: 92px;
+  cursor: default;
+  transform: rotate(-3deg);
+}
+.polaroid-apercu:hover { transform: rotate(-3deg); }
+.photo-actions { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+.photo-actions .bouton-lien { color: var(--creme-2); }
+
+.grille-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 14px;
+}
+.select-enveloppe { position: relative; display: block; }
+.select-enveloppe select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 34px 10px 14px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-petit);
+  background: var(--nuit-3);
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.select-enveloppe::after {
+  content: "";
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -6px;
+  border-right: 2px solid var(--creme-3);
+  border-bottom: 2px solid var(--creme-3);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.select-enveloppe select:focus { outline: none; border-color: var(--or); box-shadow: 0 0 0 3px rgba(243, 192, 79, 0.25); }
+
+/* ---------- Annonce écrite par Claude ---------- */
+
+.annonce {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px;
+  border-radius: var(--rayon);
+  background: var(--papier);
+  color: var(--papier-encre);
+}
+.annonce-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #ddd6c8;
+}
+.annonce-photo[hidden] + .annonce-corps { grid-column: 1 / -1; }
+.annonce-corps { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.annonce-prix {
+  font-weight: 900;
+  font-stretch: 115%;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+.annonce-titre { font-size: 17px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+.annonce-meta { font-size: 13px; color: var(--papier-encre-2); }
+.annonce-description {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.annonce-hashtags { font-size: 14px; font-weight: 600; color: #2d5fa8; overflow-wrap: anywhere; }
+.annonce.en-cours .annonce-description:empty::before,
+.annonce.en-cours .annonce-description:not(:empty)::after {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--papier-encre);
+  animation: curseur 0.9s steps(2) infinite;
+}
+@keyframes curseur { 50% { opacity: 0; } }
+.annonce-etat { font-size: 14px; color: var(--creme-2); }
+.fenetre-pied-annonce { justify-content: space-between; }
+
+.fenetre-photo {
+  width: auto;
+  max-width: calc(100vw - 24px);
+  padding: 10px;
+  background: #fbfaf6;
+  border: 0;
+  border-radius: 4px;
+}
+.fenetre-photo img {
+  display: block;
+  max-width: min(86vw, 720px);
+  max-height: 80dvh;
+  object-fit: contain;
+}
+.fermer-photo {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(14, 12, 11, 0.7);
+  color: var(--creme);
+}
+
+/* ---------- Stats : rang et trophées ---------- */
+
+.rang-carte {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px 26px;
+  margin-bottom: 16px;
+  padding: 22px;
+  border-radius: var(--rayon);
+  border: 1px solid rgba(243, 192, 79, 0.3);
+  background:
+    radial-gradient(80% 140% at 0% 0%, rgba(243, 192, 79, 0.16), transparent 60%),
+    var(--nuit-2);
+}
+.rang-medaille {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.7) 0 6%, transparent 30%),
+    radial-gradient(circle, var(--or-clair) 0 52%, var(--or-fonce) 54% 60%, var(--or) 62% 100%);
+  box-shadow: 0 10px 24px -8px rgba(243, 192, 79, 0.6), inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+  color: var(--or-encre);
+}
+.rang-medaille span { font-weight: 900; font-stretch: 125%; font-size: 30px; }
+.rang-infos { display: grid; gap: 6px; min-width: 0; }
+.rang-label {
+  font-family: var(--police-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--creme-3);
+}
+.rang-titre { font-weight: 900; font-stretch: 125%; font-size: 30px; letter-spacing: -0.03em; line-height: 1.05; }
+.rang-texte { font-size: 14px; color: var(--creme-2); }
+.rang-texte strong { color: var(--or-clair); }
+.rang-echelle {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.rang-echelle li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  color: var(--creme-3);
+}
+.rang-echelle li.passe { color: var(--creme-2); }
+.rang-echelle li.actuel { background: rgba(243, 192, 79, 0.14); color: var(--or-clair); font-weight: 800; }
+.rang-echelle small { font-variant-numeric: tabular-nums; }
+
+.trophees-bloc {
+  margin-bottom: 16px;
+  padding: 20px;
+  background: var(--nuit-2);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+}
+.trophees-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 14px; }
+.trophees-tete h3 { font-size: 18px; font-weight: 800; }
+.trophees-tete .stats-aide { margin: 0; }
+.trophees {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.trophee {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--nuit-3);
+}
+.trophee-texte { display: grid; min-width: 0; }
+.trophee-texte strong { font-size: 14px; }
+.trophee-texte span { font-size: 12px; color: var(--creme-3); }
+.medaille {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font-weight: 900;
+  font-stretch: 112%;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+.trophee.gagne .medaille {
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.7) 0 6%, transparent 30%),
+    radial-gradient(circle, var(--or-clair) 0 52%, var(--or-fonce) 54% 60%, var(--or) 62% 100%);
+  color: var(--or-encre);
+  box-shadow: 0 6px 14px -6px rgba(243, 192, 79, 0.7);
+}
+.trophee.verrouille .medaille {
+  border: 2px dashed var(--trait);
+  color: var(--creme-3);
+}
+.trophee.verrouille .trophee-texte strong { color: var(--creme-2); }
+
+/* La médaille qui tombe quand un trophée se débloque */
+.trophee-pop {
+  position: fixed;
+  left: 50%;
+  top: calc(18px + env(safe-area-inset-top, 0px));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 12px 22px 12px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(243, 192, 79, 0.5);
+  background: linear-gradient(180deg, #2a2216, #17130e);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 40px rgba(243, 192, 79, 0.25);
+  transform: translateX(-50%);
+}
+.trophee-pop .medaille {
+  width: 54px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.7) 0 6%, transparent 30%),
+    radial-gradient(circle, var(--or-clair) 0 52%, var(--or-fonce) 54% 60%, var(--or) 62% 100%);
+  color: var(--or-encre);
+  font-size: 16px;
+}
+.trophee-pop-texte { display: grid; min-width: 0; }
+.trophee-pop-texte small {
+  font-family: var(--police-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.trophee-pop-texte strong { font-size: 17px; font-weight: 900; font-stretch: 112%; }
+.trophee-pop-texte span { font-size: 13px; color: var(--creme-2); }
+.trophee-pop.visible { animation: trophee-arrive 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+.trophee-pop.visible .medaille { animation: medaille-tourne 1s 0.15s ease-out both; }
+@keyframes trophee-arrive { from { opacity: 0; transform: translate(-50%, -140%) scale(0.8); } }
+@keyframes medaille-tourne { from { transform: rotateY(540deg) scale(0.5); } }
+
 /* ---------- Écrans étroits ---------- */
 
 @media (max-width: 860px) {
   .scene-grille { grid-template-columns: 1fr; gap: 26px; }
   .portefeuille { max-width: 520px; }
+  .rang-carte { grid-template-columns: auto minmax(0, 1fr); }
+  .rang-echelle { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 }
 
 @media (max-width: 560px) {
-  .haut-ligne { margin-bottom: 10px; }
-  .sauvegarde { order: 3; flex-basis: 100%; margin-top: -4px; }
+  .haut-ligne { margin-bottom: 10px; gap: 8px 10px; }
+  .marque { flex: 1 1 auto; font-size: 16px; }
+  .rang { order: 4; }
+  .sauvegarde { order: 5; }
+  #ouvrir-reglages { width: 38px; padding: 0; }
+  #ouvrir-reglages .libelle { display: none; }
   .pf-dos, .pf-face { border-radius: 8px 8px 20px 20px; }
   .pf-dos { border-radius: 20px; }
   .pf-face::before { inset: 7px; }
@@ -1601,8 +2130,8 @@ input::placeholder, textarea::placeholder { color: var(--creme-3); opacity: 0.8;
   .pm-chiffres .pm-valeur { font-size: 22px; }
   .onglets-ligne { width: 100%; justify-content: space-between; }
   .onglets-ligne { gap: 0; padding: 3px; }
-  .onglets a { padding: 8px 8px; font-size: 13.5px; gap: 4px; }
-  .compte { min-width: 18px; padding-inline: 5px; }
+  .onglets a { padding: 8px 7px; font-size: 13px; gap: 3px; }
+  .compte { min-width: 17px; padding-inline: 4px; font-size: 11px; }
   .vente { grid-template-columns: 1fr; grid-template-areas: "texte" "chiffres" "actions"; }
   .vente-chiffres { justify-content: space-between; text-align: left; }
   .ticket { padding-inline: 14px; }
@@ -1617,6 +2146,17 @@ input::placeholder, textarea::placeholder { color: var(--creme-3); opacity: 0.8;
   .tl-date { grid-area: date; font-size: 11px; }
   .tl-solde { grid-area: solde; font-size: 11px; }
   .vide { padding: 22px 18px; }
+  .rang { padding-right: 10px; }
+  .rang-medaille { width: 64px; }
+  .rang-medaille span { font-size: 24px; }
+  .rang-titre { font-size: 24px; }
+  .annonce { grid-template-columns: 1fr; }
+  .annonce-photo { max-height: 260px; aspect-ratio: auto; }
+  .fenetre-pied-annonce .bouton { flex: 1 1 auto; }
+  .polaroid { width: 88px; }
+  .etiquette.avec-photo .etq-nom,
+  .etiquette.avec-photo .etq-details,
+  .etiquette.avec-photo .etq-meta { padding-right: 82px; }
   .fenetre {
     width: 100vw;
     max-width: 100vw;
@@ -1626,6 +2166,10 @@ input::placeholder, textarea::placeholder { color: var(--creme-3); opacity: 0.8;
   }
   .fenetre form { max-height: calc(100dvh - 40px); }
   .fenetre-pied .bouton { flex: 1 1 auto; }
+}
+
+@media (max-width: 400px) {
+  .onglets a { padding-inline: 5px; font-size: 12.5px; }
 }
 
 /* ---------- Lecture seule, chargement, mouvement réduit ---------- */

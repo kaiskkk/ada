@@ -25,10 +25,19 @@
   <div class="enveloppe">
     <div class="haut-ligne">
       <p class="marque" id="nom-boutique">Ma revente</p>
+      <a class="rang" id="rang" href="#stats" title="Ton rang, d'après ton bénéfice total">
+        <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/></svg>
+        <span id="rang-nom">Débutant</span>
+      </a>
       <span class="sauvegarde" id="sauvegarde">Ouverture…</span>
+      <button class="bouton bouton-fantome bouton-petit bouton-icone" type="button" id="son" aria-pressed="true" title="Couper le son">
+        <svg class="icone son-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+        <svg class="icone son-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m17 9 5 6M22 9l-5 6"/></svg>
+        <span class="visuellement-cache">Son</span>
+      </button>
       <button class="bouton bouton-fantome bouton-petit" type="button" id="ouvrir-reglages">
         <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
-        Réglages
+        <span class="libelle">Réglages</span>
       </button>
     </div>
 
@@ -66,6 +75,20 @@
             </button>
           </div>
         </div>
+        <div class="objectif" id="objectif">
+          <div class="objectif-tete">
+            <span class="objectif-label">Objectif</span>
+            <strong class="objectif-cible" id="obj-cible"></strong>
+          </div>
+          <div class="jauge" role="progressbar" aria-labelledby="obj-texte" aria-valuemin="0" aria-valuemax="100" id="obj-jauge">
+            <span class="jauge-remplie" id="obj-remplie"></span>
+          </div>
+          <p class="objectif-texte" id="obj-texte"></p>
+        </div>
+        <button class="objectif-vide ecrit" type="button" id="obj-fixer" hidden>
+          <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>
+          Fixe-toi un objectif : 500 €, 1 000 €… et regarde la jauge monter.
+        </button>
         <dl class="pm-chiffres">
           <div>
             <dt>Bloqué dans le stock</dt>
@@ -155,6 +178,7 @@
       <h2 id="t-stats">Tes stats</h2>
       <p class="vue-resume">Calculées sur les articles vendus.</p>
     </div>
+    <div class="rang-carte" id="rang-carte"></div>
     <div class="tuiles" id="tuiles"></div>
     <figure class="graphique-carte">
       <figcaption>
@@ -167,6 +191,13 @@
         <div class="tableau-defile"><table id="tableau-mois"></table></div>
       </details>
     </figure>
+    <section class="trophees-bloc" aria-labelledby="t-trophees">
+      <div class="trophees-tete">
+        <h3 id="t-trophees">Trophées</h3>
+        <p class="stats-aide" id="trophees-compte"></p>
+      </div>
+      <ul class="trophees" id="trophees"></ul>
+    </section>
     <div class="stats-bas">
       <section class="stats-bloc" aria-labelledby="t-categories">
         <h3 id="t-categories">Par catégorie</h3>
@@ -239,10 +270,43 @@
       <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
     </header>
     <div class="fenetre-corps">
+      <div class="photo-champ" id="a-photo-zone">
+        <div class="polaroid polaroid-apercu" id="a-photo-apercu" hidden><img id="a-photo-img" alt="Photo de l'article"></div>
+        <div class="photo-actions">
+          <label class="bouton bouton-fantome" for="a-photo" id="a-photo-label">
+            <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4V8Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            <span id="a-photo-texte">Ajouter une photo</span>
+          </label>
+          <input class="visuellement-cache" type="file" id="a-photo" accept="image/*">
+          <button class="bouton bouton-lien" type="button" id="a-photo-retirer" hidden>Retirer la photo</button>
+          <p class="champ-aide" id="a-photo-aide">Une photo par article : elle s'accroche à l'étiquette et Claude s'en sert pour écrire l'annonce.</p>
+        </div>
+      </div>
       <label class="champ" for="a-nom">
         <span>Quoi&nbsp;?</span>
-        <input id="a-nom" required placeholder="ex. Nike Dunk Low taille 42">
+        <input id="a-nom" required placeholder="ex. Pull Stone Island bleu marine">
       </label>
+      <div class="grille-3">
+        <label class="champ" for="a-marque">
+          <span>Marque</span>
+          <input id="a-marque" list="liste-marques" placeholder="ex. Stone Island">
+        </label>
+        <label class="champ" for="a-taille">
+          <span>Taille</span>
+          <input id="a-taille" list="liste-tailles" placeholder="ex. M">
+        </label>
+        <label class="champ" for="a-etat">
+          <span>État</span>
+          <span class="select-enveloppe"><select id="a-etat">
+            <option value="">—</option>
+            <option>Neuf avec étiquette</option>
+            <option>Neuf sans étiquette</option>
+            <option>Très bon état</option>
+            <option>Bon état</option>
+            <option>Satisfaisant</option>
+          </select></span>
+        </label>
+      </div>
       <div class="grille-2">
         <label class="champ" for="a-prix">
           <span>Prix payé</span>
@@ -388,6 +452,10 @@
         <span>Nom de ta boutique <small>(gravé sur le porte-monnaie)</small></span>
         <input id="r-nom" maxlength="28" placeholder="Ma revente">
       </label>
+      <label class="champ" for="r-objectif">
+        <span>Objectif <small>(ce que tu veux avoir en tout : sous en poche + stock)</small></span>
+        <span class="saisie-euro"><input id="r-objectif" inputmode="decimal" placeholder="ex. 500"></span>
+      </label>
       <div class="grille-2">
         <label class="champ" for="r-marge">
           <span>Marge visée</span>
@@ -440,8 +508,59 @@
   </form>
 </dialog>
 
+<!-- Annonce écrite par Claude -->
+<dialog class="fenetre" id="dlg-annonce" aria-labelledby="dlg-annonce-titre">
+  <form id="form-annonce">
+    <header class="fenetre-tete">
+      <h2 id="dlg-annonce-titre">Ton annonce</h2>
+      <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+    </header>
+    <div class="fenetre-corps">
+      <article class="annonce" id="annonce">
+        <img class="annonce-photo" id="an-photo" alt="" hidden>
+        <div class="annonce-corps">
+          <p class="annonce-prix" id="an-prix"></p>
+          <h3 class="annonce-titre" id="an-titre"></h3>
+          <p class="annonce-meta" id="an-meta"></p>
+          <p class="annonce-description" id="an-description"></p>
+          <p class="annonce-hashtags" id="an-hashtags"></p>
+        </div>
+      </article>
+      <p class="annonce-etat" id="an-etat" role="status"></p>
+    </div>
+    <footer class="fenetre-pied fenetre-pied-annonce">
+      <button class="bouton bouton-fantome" type="button" id="an-autre">Autre version</button>
+      <button class="bouton bouton-fantome" type="button" id="an-copier-titre" disabled>Copier le titre</button>
+      <button class="bouton bouton-or" type="button" id="an-copier" disabled>Copier la description</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Photo en grand -->
+<dialog class="fenetre fenetre-photo" id="dlg-photo" aria-label="Photo de l'article">
+  <form method="dialog">
+    <button class="fermer fermer-photo" type="submit" aria-label="Fermer">×</button>
+    <img id="photo-grande" alt="">
+  </form>
+</dialog>
+
 <datalist id="liste-categories"></datalist>
+<datalist id="liste-marques"></datalist>
+<datalist id="liste-tailles">
+  <option value="XS"></option><option value="S"></option><option value="M"></option><option value="L"></option><option value="XL"></option><option value="XXL"></option>
+  <option value="36"></option><option value="38"></option><option value="40"></option><option value="42"></option><option value="44"></option><option value="46"></option>
+  <option value="Taille unique"></option>
+</datalist>
 <datalist id="liste-lieux"></datalist>
+
+<div class="trophee-pop" id="trophee-pop" role="status" aria-live="polite" hidden>
+  <span class="medaille" id="tp-glyphe" aria-hidden="true"></span>
+  <span class="trophee-pop-texte">
+    <small>Trophée débloqué</small>
+    <strong id="tp-nom"></strong>
+    <span id="tp-desc"></span>
+  </span>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden>
   <span id="toast-texte"></span>

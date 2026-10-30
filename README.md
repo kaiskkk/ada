@@ -53,6 +53,11 @@ Le dossier `porte-monnaie/` contient une appli à part pour suivre un achat-reve
 - **Stock** : chaque article acheté sur une étiquette kraft, avec le prix de vente prévu écrit au marqueur, ce qu'il a coûté (prix + frais) et le bénéfice attendu. Au moment de l'achat, l'appli propose un prix de vente selon la marge visée (+30 %, +50 %, ×2…). Les articles en stock depuis plus de 30 jours sont signalés.
 - **Vendu !** : on indique le prix de vente et les frais (commission, envoi), l'appli affiche ce qui revient et le bénéfice.
 - **Ventes**, **Journal** (toutes les entrées et sorties d'argent, façon ticket de caisse), **Stats** (bénéfice par mois, marge moyenne, temps pour vendre, par catégorie) et **Calculette** de prix.
-- **Réglages** : nom de la boutique, marge visée, frais de vente habituels, export pour Excel (.csv), sauvegarde et restauration (.json).
+- **Photos** : une photo par article, réduite automatiquement, accrochée à l'étiquette comme un polaroid.
+- **Marque, taille, état** pour les vêtements (les états reprennent ceux de Vinted).
+- **Annonce avec Claude** : dans la version publiée sur claude.ai, Claude écrit le titre, la description et les hashtags de l'annonce à partir de la photo et des infos de l'article. Un bouton copie le texte.
+- **La vente** : un tampon « VENDU » claque sur l'étiquette, elle s'envole, les pièces tombent dans le porte-monnaie avec un bruit de tiroir-caisse (son coupable en haut de l'écran).
+- **Objectif, rang et trophées** : une jauge vers l'objectif fixé dans les réglages (sous en poche + stock), un rang qui monte avec le bénéfice (de Débutant à Légende) et 12 trophées à débloquer.
+- **Réglages** : nom de la boutique, objectif, marge visée, frais de vente habituels, export pour Excel (.csv), sauvegarde et restauration (.json).
 
-Ouverte depuis un fichier ou un hébergement classique, l'appli enregistre les données dans le navigateur (`localStorage`), sur cet appareil seulement : faites une sauvegarde de temps en temps. Publiée en artifact claude.ai, elle les enregistre dans le compte du propriétaire et reste privée.
+Ouverte depuis un fichier ou un hébergement classique, l'appli enregistre les données et les photos dans le navigateur (`localStorage`), sur cet appareil seulement : faites une sauvegarde de temps en temps. L'annonce avec Claude n'y est pas disponible. Publiée en artifact claude.ai, elle enregistre tout dans le compte du propriétaire et reste privée.

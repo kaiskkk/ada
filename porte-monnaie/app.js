@@ -9,6 +9,33 @@
   const LIEUX = ['Vinted', 'Leboncoin', 'eBay', 'Facebook Marketplace', 'Brocante', 'Vide-grenier', 'Friperie', 'Boutique', 'Main propre'];
   const CATEGORIES = ['Sneakers', 'Vêtements', 'Mode', 'High-tech', 'Jeux vidéo', 'Collection', 'Meubles', 'Déco', 'Livres'];
   const JOURS_DORT = 30;
+  const MARQUES = ['Stone Island', 'C.P. Company', 'Nike', 'Adidas', 'Under Armour', 'The North Face', 'Ralph Lauren', 'Lacoste', 'Carhartt', "Levi's", "Arc'teryx", 'Moncler', 'Patagonia', 'Tommy Hilfiger', 'Zara'];
+  const CLE_SON = 'porte-monnaie:son';
+
+  // Le rang monte avec le bénéfice encaissé au total.
+  const RANGS = [
+    { min: 0, nom: 'Débutant' },
+    { min: 50, nom: 'Chineur' },
+    { min: 200, nom: 'Revendeur' },
+    { min: 500, nom: 'Boss du tri' },
+    { min: 1000, nom: 'Requin' },
+    { min: 2500, nom: 'Légende' },
+  ];
+
+  const TROPHEES = [
+    { id: 'premier-achat', glyphe: '1er', nom: 'Premier achat', desc: 'Enregistrer ton premier achat.', test: (s) => s.nbArticles >= 1 },
+    { id: 'premiere-vente', glyphe: '€', nom: 'Première vente', desc: 'Vendre ton premier article.', test: (s) => s.nbVendus >= 1 },
+    { id: 'cinq-ventes', glyphe: '5', nom: 'Bien lancé', desc: 'Faire 5 ventes.', test: (s) => s.nbVendus >= 5 },
+    { id: 'vingt-ventes', glyphe: '20', nom: 'Machine', desc: 'Faire 20 ventes.', test: (s) => s.nbVendus >= 20 },
+    { id: 'eclair', glyphe: '24h', nom: 'Éclair', desc: "Revendre un article moins de 24 h après l'avoir acheté.", test: (s) => s.eclair },
+    { id: 'fois-deux', glyphe: '×2', nom: 'Fois deux', desc: 'Revendre un article au moins deux fois son prix.', test: (s) => s.maxRatio >= 2 },
+    { id: 'fois-cinq', glyphe: '×5', nom: 'Coup de génie', desc: 'Revendre un article au moins cinq fois son prix.', test: (s) => s.maxRatio >= 5 },
+    { id: 'gros-coup', glyphe: '50', nom: 'Gros coup', desc: 'Gagner 50 € sur une seule vente.', test: (s) => s.maxBenef >= 50 },
+    { id: 'cent', glyphe: '100', nom: 'Premiers 100 €', desc: 'Atteindre 100 € de bénéfice au total.', test: (s) => s.benef >= 100 },
+    { id: 'mille', glyphe: '1k', nom: 'Le millier', desc: 'Atteindre 1 000 € de bénéfice au total.', test: (s) => s.benef >= 1000 },
+    { id: 'grossiste', glyphe: '10', nom: 'Grossiste', desc: 'Acheter 10 articles.', test: (s) => s.nbArticles >= 10 },
+    { id: 'sans-faute', glyphe: '0', nom: 'Sans faute', desc: 'Faire 10 ventes sans aucune à perte.', test: (s) => s.nbVendus >= 10 && s.pertes === 0 },
+  ];
 
   const etat = {
     mode: 'demarrage', // demarrage | compte | appareil | lecture
@@ -25,6 +52,12 @@
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
   const mouvementReduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Ce que la page claude.ai sait faire en plus : stocker des photos, demander à Claude.
+  let assetsCap = null;
+  let sampleCap = null;
+  let sampleImages = false;
 
   /* ---------- Nombres, dates, texte ---------- */
 
@@ -111,6 +144,40 @@
     if (p < 20) return Math.ceil(p);
     if (p < 150) return Math.ceil(p / 5) * 5;
     return Math.ceil(p / 10) * 10;
+  }
+
+  const photoUrl = (a) => (a.photo ? '/_blob/' + a.photo : a.photoLocale || null);
+  const peutPhotos = () => etat.mode === 'appareil' || Boolean(assetsCap);
+
+  // « Vêtements », « vetement » et « Vetements » sont la même catégorie.
+  const cleCategorie = (c) => normaliser(c).trim().replace(/s$/, '');
+  function libelleCategorie(c) {
+    if (!c) return '';
+    return CATEGORIES.find((x) => cleCategorie(x) === cleCategorie(c)) || c;
+  }
+
+  function rangPour(benef) {
+    let i = 0;
+    while (i + 1 < RANGS.length && benef >= RANGS[i + 1].min) i += 1;
+    const actuel = RANGS[i];
+    const suivant = RANGS[i + 1] || null;
+    const progres = suivant ? Math.max(0, Math.min(1, (benef - actuel.min) / (suivant.min - actuel.min))) : 1;
+    return { niveau: i + 1, actuel, suivant, progres };
+  }
+
+  function statsTrophees(b) {
+    const s = { nbArticles: etat.articles.size, nbVendus: 0, benef: b.benefEncaisse, maxRatio: 0, maxBenef: 0, eclair: false, pertes: 0 };
+    for (const a of etat.articles.values()) {
+      if (a.statut !== 'vendu') continue;
+      s.nbVendus += 1;
+      const c = cout(a);
+      if (c > 0) s.maxRatio = Math.max(s.maxRatio, encaisse(a) / c);
+      s.maxBenef = Math.max(s.maxBenef, benefice(a));
+      if (benefice(a) < 0) s.pertes += 1;
+      const rapide = a.cree && a.venduLe ? a.venduLe - a.cree < 86400000 : a.dateVente === a.dateAchat;
+      if (rapide) s.eclair = true;
+    }
+    return s;
   }
 
   function bilan() {
@@ -326,6 +393,8 @@
       majCalculette();
     }
     rendrePorteMonnaie(b);
+    rendreObjectif(b);
+    verifierTrophees(b);
     rendreListesSaisie();
     rendreStock(b);
     rendreVentes();
@@ -355,6 +424,85 @@
     $('#r-ou').textContent = pied[etat.mode];
     $('#pf-frappe').textContent = nom;
     $('#bandeau-lecture').hidden = etat.mode !== 'lecture';
+    const rang = rangPour(etat.pret ? bilan().benefEncaisse : 0);
+    $('#rang-nom').textContent = rang.actuel.nom;
+    $('#rang').dataset.niveau = String(rang.niveau);
+  }
+
+  let objectifAtteintVu = null;
+
+  function rendreObjectif(b) {
+    const cible = Number(etat.reglages.objectif) || 0;
+    const avoir = arrondi(b.solde + b.stockCout);
+    $('#objectif').hidden = !cible;
+    $('#obj-fixer').hidden = Boolean(cible);
+    if (!cible) {
+      objectifAtteintVu = null;
+      return;
+    }
+    const p = Math.max(0, Math.min(1, avoir / cible));
+    const atteint = avoir >= cible;
+    $('#obj-cible').textContent = euros(cible);
+    $('#obj-remplie').style.setProperty('--p', (p * 100).toFixed(1) + '%');
+    $('#obj-jauge').setAttribute('aria-valuenow', String(Math.round(p * 100)));
+    $('#objectif').classList.toggle('atteint', atteint);
+    $('#obj-texte').textContent = atteint
+      ? `Objectif atteint : tu as ${euros(avoir)}. Fixe-toi le suivant dans les réglages.`
+      : `${euros(avoir)} sur ${euros(cible)} (${fmtPct.format(p)}) : ${euros(Math.max(0, b.solde))} en poche et ${euros(b.stockCout)} en stock. Encore ${euros(cible - avoir)}.`;
+    if (objectifAtteintVu === false && atteint) {
+      setTimeout(() => {
+        Son.fanfare();
+        pluieDePieces(16);
+        toast(`Objectif de ${euros(cible)} atteint. Bravo.`);
+      }, 1200);
+    }
+    objectifAtteintVu = atteint;
+  }
+
+  let tropheesConnus = null;
+
+  function verifierTrophees(b) {
+    const s = statsTrophees(b);
+    const gagnes = new Set(TROPHEES.filter((t) => t.test(s)).map((t) => t.id));
+    if (tropheesConnus) {
+      const nouveaux = TROPHEES.filter((t) => gagnes.has(t.id) && !tropheesConnus.has(t.id));
+      if (nouveaux.length) setTimeout(() => annoncerTrophees(nouveaux), 1300);
+    }
+    tropheesConnus = gagnes;
+    return gagnes;
+  }
+
+  // Plusieurs trophées d'un coup : ils passent l'un après l'autre.
+  const fileTrophees = [];
+  let tropheeAffiche = false;
+
+  function annoncerTrophees(liste) {
+    fileTrophees.push(...liste);
+    if (!tropheeAffiche) tropheeSuivant();
+  }
+
+  function tropheeSuivant() {
+    const pop = $('#trophee-pop');
+    const t = fileTrophees.shift();
+    if (!t) {
+      tropheeAffiche = false;
+      pop.hidden = true;
+      return;
+    }
+    tropheeAffiche = true;
+    $('#tp-glyphe').textContent = t.glyphe;
+    $('#tp-nom').textContent = t.nom;
+    $('#tp-desc').textContent = t.desc;
+    pop.hidden = false;
+    pop.classList.remove('visible');
+    void pop.offsetWidth;
+    pop.classList.add('visible');
+    Son.fanfare();
+    vibrer([20, 40, 20, 40, 60]);
+    setTimeout(() => {
+      pop.hidden = true;
+      setTimeout(tropheeSuivant, 250);
+    }, fileTrophees.length ? 2600 : 4000);
   }
 
   function rendreChargement() {
@@ -501,16 +649,16 @@
   }
 
   function rendreListesSaisie() {
-    const categories = new Set(CATEGORIES);
-    const lieux = new Set(LIEUX);
-    for (const a of etat.articles.values()) {
-      if (a.categorie) categories.add(a.categorie);
-      if (a.lieuAchat) lieux.add(a.lieuAchat);
-      if (a.lieuVente) lieux.add(a.lieuVente);
-    }
-    const options = (valeurs) => [...valeurs].sort((x, y) => x.localeCompare(y, 'fr')).map((v) => `<option value="${esc(v)}"></option>`).join('');
-    $('#liste-categories').innerHTML = options(categories);
-    $('#liste-lieux').innerHTML = options(lieux);
+    const sansDoublon = (base, valeurs) => {
+      const vus = new Map();
+      for (const v of [...base, ...valeurs]) if (v && !vus.has(cleCategorie(v))) vus.set(cleCategorie(v), v);
+      return [...vus.values()];
+    };
+    const articles = [...etat.articles.values()];
+    const options = (valeurs) => valeurs.sort((x, y) => x.localeCompare(y, 'fr')).map((v) => `<option value="${esc(v)}"></option>`).join('');
+    $('#liste-categories').innerHTML = options(sansDoublon(CATEGORIES, articles.map((a) => a.categorie)));
+    $('#liste-marques').innerHTML = options(sansDoublon(MARQUES, articles.map((a) => a.marque)));
+    $('#liste-lieux').innerHTML = options(sansDoublon(LIEUX, articles.flatMap((a) => [a.lieuAchat, a.lieuVente])));
   }
 
   /* Stock */
@@ -519,7 +667,7 @@
     const q = normaliser(etat.recherche.trim());
     let liste = [];
     for (const [id, a] of etat.articles) if (a.statut !== 'vendu') liste.push({ id, a });
-    if (q) liste = liste.filter(({ a }) => normaliser([a.nom, a.categorie, a.lieuAchat, a.note].join(' ')).includes(q));
+    if (q) liste = liste.filter(({ a }) => normaliser([a.nom, a.marque, a.taille, a.categorie, a.lieuAchat, a.note].join(' ')).includes(q));
     const tris = {
       recent: (x, y) => comparer(y.a.dateAchat, x.a.dateAchat) || (y.a.cree || 0) - (x.a.cree || 0),
       ancien: (x, y) => comparer(x.a.dateAchat, y.a.dateAchat) || (x.a.cree || 0) - (y.a.cree || 0),
@@ -534,24 +682,33 @@
     const age = joursEntre(a.dateAchat, aujourdhui());
     const dort = age >= JOURS_DORT;
     const bp = beneficePrevu(a);
-    const meta = [a.categorie, a.lieuAchat ? 'acheté sur ' + a.lieuAchat : ''].filter(Boolean).map(esc).join(' · ');
+    const url = photoUrl(a);
+    const details = [a.marque, a.taille ? `Taille ${a.taille}` : '', a.etat].filter(Boolean).map(esc).join(' · ');
+    const meta = [libelleCategorie(a.categorie), a.lieuAchat].filter(Boolean).map(esc).join(' · ');
     const ligneBenef = bp === null
       ? '<div><dt>Bénéfice prévu</dt><dd>pas encore de prix</dd></div>'
       : `<div><dt>${bp >= 0 ? 'Bénéfice prévu' : 'Perte prévue'}</dt><dd class="${bp >= 0 ? 'gain' : 'perte'}">${eurosSigne(bp)}${cout(a) > 0 ? ` <small>${pct(marge(bp, cout(a)))}</small>` : ''}</dd></div>`;
-    return `<li class="etiquette${dort ? ' dort' : ''}">
+    return `<li class="etiquette${dort ? ' dort' : ''}${url ? ' avec-photo' : ''}" data-id="${esc(id)}">
       <svg class="etq-ficelle" viewBox="0 0 40 120" preserveAspectRatio="none" aria-hidden="true"><path d="M40 60 C 26 60, 12 48, 6 22 S 10 2, 2 0"></path><path d="M40 60 C 28 64, 16 80, 10 104 S 4 118, 0 120"></path></svg>
+      ${url ? `<button class="polaroid" type="button" data-action="photo" data-id="${esc(id)}" aria-label="Voir la photo de ${esc(a.nom)}"><img src="${esc(url)}" alt="" loading="lazy"></button>` : ''}
       <div class="etq-papier">
         <span class="etq-trou" aria-hidden="true"></span>
-        ${dort ? `<span class="tampon" aria-hidden="true">Dort<br>${age} j</span>` : ''}
         <h3 class="etq-nom">${esc(a.nom)}</h3>
+        ${details ? `<p class="etq-details">${details}</p>` : ''}
         <p class="etq-meta">${meta || 'Sans catégorie'}</p>
-        <p class="etq-marqueur" title="Prix de vente prévu">${a.prixPrevu ? euros(a.prixPrevu) : '? €'}</p>
+        <div class="etq-prix-ligne">
+          <p class="etq-marqueur" title="Prix de vente prévu">${a.prixPrevu ? euros(a.prixPrevu) : '? €'}</p>
+          ${dort ? `<span class="tampon" aria-hidden="true">Dort<br>${age} j</span>` : ''}
+        </div>
         <dl class="etq-lignes">
           <div><dt>Payé</dt><dd>${euros(cout(a))}${a.fraisAchat ? ` <small>dont ${euros(a.fraisAchat)} de frais</small>` : ''}</dd></div>
           ${ligneBenef}
           <div><dt>En stock</dt><dd title="Acheté le ${esc(dateLongue(a.dateAchat))}">${age === 0 ? "depuis aujourd'hui" : `depuis ${pluriel(age, 'jour')}`}</dd></div>
         </dl>
         ${a.note ? `<p class="etq-note">${esc(a.note)}</p>` : ''}
+        ${sampleCap ? `<button class="bouton bouton-claude ecrit" type="button" data-action="annonce" data-id="${esc(id)}">
+          <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>
+          Annonce avec Claude</button>` : ''}
         <div class="etq-actions ecrit">
           <button class="bouton bouton-gain" type="button" data-action="vendre" data-id="${esc(id)}">Vendu&nbsp;!</button>
           <button class="bouton bouton-encre" type="button" data-action="modifier" data-id="${esc(id)}">Modifier</button>
@@ -618,7 +775,8 @@
       const g = benefice(a);
       const duree = joursEntre(a.dateAchat, a.dateVente);
       const sous = [
-        a.categorie,
+        [a.marque, a.taille ? `taille ${a.taille}` : ''].filter(Boolean).join(' '),
+        libelleCategorie(a.categorie),
         `acheté le ${dateCourte(a.dateAchat)}`,
         `vendu le ${dateCourte(a.dateVente)}${a.lieuVente ? ' sur ' + a.lieuVente : ''}`,
         duree === 0 ? 'parti le jour même' : `parti en ${pluriel(duree, 'jour')}`,
@@ -736,9 +894,11 @@
     $('#tableau-mois').innerHTML = `<thead><tr><th scope="col">Mois</th><th scope="col">Ventes</th><th scope="col">Encaissé</th><th scope="col">Bénéfice</th></tr></thead>
       <tbody>${mois.map((m) => `<tr><th scope="row">${fmtMoisLong.format(m.date)}</th><td>${m.ventes}</td><td>${euros(m.encaisse)}</td><td>${eurosSigne(m.benef)}</td></tr>`).join('')}</tbody>`;
 
+    rendreRangEtTrophees();
+
     const categories = new Map();
     for (const a of vendus) {
-      const c = a.categorie || 'Sans catégorie';
+      const c = libelleCategorie(a.categorie) || 'Sans catégorie';
       const x = categories.get(c) || { ventes: 0, benef: 0, cout: 0 };
       x.ventes += 1;
       x.benef += benefice(a);
@@ -761,6 +921,33 @@
           <button class="bouton bouton-lien ecrit" type="button" data-action="modifier" data-id="${esc(id)}">Changer le prix</button>
         </li>`).join('')
       : '<li class="dort-rien">Rien ne traîne. Ton stock tourne bien.</li>';
+  }
+
+  function rendreRangEtTrophees() {
+    const b = bilan();
+    const r = rangPour(b.benefEncaisse);
+    $('#rang-carte').innerHTML = `
+      <div class="rang-medaille" aria-hidden="true"><span>${r.niveau}</span></div>
+      <div class="rang-infos">
+        <p class="rang-label">Ton rang</p>
+        <p class="rang-titre">${esc(r.actuel.nom)}</p>
+        <div class="jauge jauge-fine"><span class="jauge-remplie" style="--p: ${(r.progres * 100).toFixed(1)}%"></span></div>
+        <p class="rang-texte">${r.suivant
+          ? `Encore ${euros(r.suivant.min - b.benefEncaisse)} de bénéfice pour passer <strong>${esc(r.suivant.nom)}</strong>.`
+          : 'Tu as atteint le rang le plus haut.'}</p>
+      </div>
+      <ol class="rang-echelle">${RANGS.map((x, i) => `<li class="${i + 1 < r.niveau ? 'passe' : i + 1 === r.niveau ? 'actuel' : ''}"><span>${esc(x.nom)}</span><small>${x.min ? euros(x.min) : '0 €'}</small></li>`).join('')}</ol>`;
+
+    const gagnes = tropheesConnus || new Set();
+    $('#trophees-compte').textContent = `${gagnes.size} sur ${TROPHEES.length} débloqués`;
+    $('#trophees').innerHTML = TROPHEES.map((t) => {
+      const ok = gagnes.has(t.id);
+      return `<li class="trophee ${ok ? 'gagne' : 'verrouille'}">
+        <span class="medaille" aria-hidden="true">${esc(t.glyphe)}</span>
+        <span class="trophee-texte"><strong>${esc(t.nom)}</strong><span>${esc(t.desc)}</span></span>
+        <span class="visuellement-cache">${ok ? 'Débloqué' : 'Pas encore débloqué'}</span>
+      </li>`;
+    }).join('');
   }
 
   /* Graphique : bénéfice par mois, colonnes depuis une ligne zéro */
@@ -923,6 +1110,105 @@
     minuterieToast = setTimeout(() => { el.hidden = true; actionToast = null; }, action ? 7000 : 4200);
   }
 
+  /* Le son de la caisse, fabriqué à la volée : aucun fichier à charger. */
+  const Son = {
+    ctx: null,
+    actif: (() => {
+      try { return localStorage.getItem(CLE_SON) !== 'non'; } catch (e) { return true; }
+    })(),
+    contexte() {
+      if (!this.actif) return null;
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return null;
+      if (!this.ctx) {
+        try { this.ctx = new C(); } catch (e) { return null; }
+      }
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+      return this.ctx;
+    },
+    souffle(ctx, t, duree, volume, filtre, frequence) {
+      const n = Math.max(1, Math.floor(ctx.sampleRate * duree));
+      const buffer = ctx.createBuffer(1, n, ctx.sampleRate);
+      const d = buffer.getChannelData(0);
+      for (let i = 0; i < n; i += 1) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      const f = ctx.createBiquadFilter();
+      f.type = filtre;
+      f.frequency.value = frequence;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(volume, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + duree);
+      src.connect(f).connect(g).connect(ctx.destination);
+      src.start(t);
+      src.stop(t + duree + 0.02);
+    },
+    tinte(ctx, t, frequence, duree, volume, forme) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = forme || 'sine';
+      o.frequency.setValueAtTime(frequence, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(volume, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + duree);
+      o.connect(g).connect(ctx.destination);
+      o.start(t);
+      o.stop(t + duree + 0.05);
+    },
+    kaching() {
+      const ctx = this.contexte();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.01;
+      this.souffle(ctx, t, 0.09, 0.35, 'bandpass', 1700);
+      [[2637, 0.2], [3951, 0.11], [5274, 0.05]].forEach(([f, v]) => this.tinte(ctx, t + 0.07, f, 1.3, v));
+      [[3136, 0.15], [4699, 0.07]].forEach(([f, v]) => this.tinte(ctx, t + 0.17, f, 1.1, v));
+    },
+    tampon() {
+      const ctx = this.contexte();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.01;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.setValueAtTime(140, t);
+      o.frequency.exponentialRampToValueAtTime(45, t + 0.16);
+      g.gain.setValueAtTime(0.5, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.connect(g).connect(ctx.destination);
+      o.start(t);
+      o.stop(t + 0.25);
+      this.souffle(ctx, t, 0.06, 0.25, 'lowpass', 900);
+    },
+    pieces() {
+      const ctx = this.contexte();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.01;
+      for (let i = 0; i < 4; i += 1) this.tinte(ctx, t + i * 0.075 + Math.random() * 0.02, 2200 + Math.random() * 1400, 0.3, 0.07, 'triangle');
+    },
+    papier() {
+      const ctx = this.contexte();
+      if (!ctx) return;
+      this.souffle(ctx, ctx.currentTime + 0.01, 0.22, 0.14, 'highpass', 2600);
+    },
+    fanfare() {
+      const ctx = this.contexte();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.01;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.tinte(ctx, t + i * 0.11, f, i === 3 ? 0.9 : 0.3, 0.12, 'triangle'));
+    },
+  };
+
+  function vibrer(motif) {
+    try {
+      if (navigator.vibrate) navigator.vibrate(motif);
+    } catch (e) { /* pas de vibreur ici */ }
+  }
+
+  function rendreSon() {
+    const bouton = $('#son');
+    bouton.setAttribute('aria-pressed', String(Son.actif));
+    bouton.title = Son.actif ? 'Couper le son' : 'Remettre le son';
+  }
+
   function pluieDePieces(nombre) {
     if (mouvementReduit) return;
     const zone = $('#pieces');
@@ -946,6 +1232,10 @@
     const a = id ? etat.articles.get(id) : null;
     $('#dlg-achat-titre').textContent = a ? 'Modifier l\'achat' : 'J\'ai acheté un truc';
     $('#a-nom').value = a ? a.nom : '';
+    $('#a-marque').value = a ? a.marque || '' : '';
+    $('#a-taille').value = a ? a.taille || '' : '';
+    $('#a-etat').value = a ? a.etat || '' : '';
+    reinitPhotoAchat(a);
     $('#a-prix').value = a ? String(a.prixAchat).replace('.', ',') : '';
     $('#a-frais').value = a && a.fraisAchat ? String(a.fraisAchat).replace('.', ',') : '';
     $('#a-categorie').value = a ? a.categorie || '' : '';
@@ -961,6 +1251,70 @@
   }
 
   let prevuTouche = false;
+
+  // La photo choisie dans la fenêtre d'achat, en attente d'enregistrement.
+  const photoAchat = { blob: null, url: null, retiree: false };
+
+  function reinitPhotoAchat(a) {
+    if (photoAchat.blob && photoAchat.url) URL.revokeObjectURL(photoAchat.url);
+    photoAchat.blob = null;
+    photoAchat.retiree = false;
+    photoAchat.url = a ? photoUrl(a) : null;
+    afficherPhotoAchat();
+  }
+
+  function afficherPhotoAchat() {
+    $('#a-photo-zone').hidden = !peutPhotos();
+    $('#a-photo-apercu').hidden = !photoAchat.url;
+    if (photoAchat.url) $('#a-photo-img').src = photoAchat.url;
+    else $('#a-photo-img').removeAttribute('src');
+    $('#a-photo-texte').textContent = photoAchat.url ? 'Changer la photo' : 'Ajouter une photo';
+    $('#a-photo-retirer').hidden = !photoAchat.url;
+  }
+
+  // Une photo de téléphone pèse plusieurs Mo : on la réduit avant de la garder.
+  async function compresserPhoto(fichier, cote) {
+    let source;
+    let largeur;
+    let hauteur;
+    let urlTemporaire = null;
+    try {
+      source = await createImageBitmap(fichier);
+      largeur = source.width;
+      hauteur = source.height;
+    } catch (e) {
+      urlTemporaire = URL.createObjectURL(fichier);
+      source = new Image();
+      source.src = urlTemporaire;
+      await source.decode();
+      largeur = source.naturalWidth;
+      hauteur = source.naturalHeight;
+    }
+    const k = Math.min(1, cote / Math.max(largeur, hauteur));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(largeur * k));
+    canvas.height = Math.max(1, Math.round(hauteur * k));
+    canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+    if (urlTemporaire) URL.revokeObjectURL(urlTemporaire);
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.82));
+    if (!blob) throw new Error('photo illisible');
+    return blob;
+  }
+
+  const blobVersDataUrl = (blob) => new Promise((resoudre, rejeter) => {
+    const lecteur = new FileReader();
+    lecteur.onload = () => resoudre(lecteur.result);
+    lecteur.onerror = () => rejeter(lecteur.error);
+    lecteur.readAsDataURL(blob);
+  });
+
+  function messagePhoto(e) {
+    const code = e && e.code;
+    if (code === 'too_large') return 'La photo est trop lourde. Essaie une autre image.';
+    if (code === 'quota_or_state') return "Plus de place pour les photos. Supprime des articles vendus qui en ont une.";
+    if (code === 'rate_limited') return 'Trop de photos envoyées à la suite. Attends un peu et réessaie.';
+    return "La photo n'a pas pu être envoyée. Vérifie ta connexion et réessaie.";
+  }
 
   function majAideAchat() {
     const prix = lireMontant($('#a-prix').value) || 0;
@@ -1021,20 +1375,55 @@
       dateAchat: $('#a-date').value || aujourdhui(),
       prixPrevu: prevu || null,
       note: $('#a-note').value.trim(),
+      marque: $('#a-marque').value.trim(),
+      taille: $('#a-taille').value.trim(),
+      etat: $('#a-etat').value,
       statut: ancien ? ancien.statut : 'stock',
       cree: ancien ? ancien.cree || Date.now() : Date.now(),
     };
     const bouton = $('#a-valider');
+    const texteBouton = bouton.textContent;
     bouton.disabled = true;
+    let ancienneAsset = null;
     try {
+      if (photoAchat.blob) {
+        if (Stockage.db) {
+          if (!assetsCap) throw { code: 'photo_indisponible' };
+          bouton.textContent = 'Envoi de la photo…';
+          try {
+            const envoi = await assetsCap.upload(photoAchat.blob, { type: 'image/jpeg' });
+            data.photo = envoi.id;
+          } catch (err) {
+            throw { code: 'photo', detail: err };
+          }
+          data.photoLocale = null;
+        } else {
+          data.photoLocale = await blobVersDataUrl(photoAchat.blob);
+          data.photo = null;
+        }
+        if (ancien && ancien.photo) ancienneAsset = ancien.photo;
+      } else if (photoAchat.retiree) {
+        if (ancien && ancien.photo) ancienneAsset = ancien.photo;
+        data.photo = null;
+        data.photoLocale = null;
+      }
       await Stockage.ecrire('articles', id, data);
+      if (ancienneAsset && assetsCap) assetsCap.delete(ancienneAsset).catch(() => {});
       fermer($('#dlg-achat'));
-      if (ancien) toast(`« ${nom} » est à jour.`);
-      else toast(`Achat enregistré : ${MOINS}${euros(cout(data))} dans le porte-monnaie.`);
+      if (ancien) {
+        toast(`« ${nom} » est à jour.`);
+      } else {
+        Son.papier();
+        vibrer(25);
+        toast(`Achat enregistré : ${MOINS}${euros(cout(data))} dans le porte-monnaie.`);
+      }
     } catch (err) {
-      montrerErreur('#a-erreur', messageErreur(err));
+      if (err && err.code === 'photo') montrerErreur('#a-erreur', messagePhoto(err.detail));
+      else if (err && err.code === 'photo_indisponible') montrerErreur('#a-erreur', "Les photos ne sont pas disponibles ici. Retire la photo pour enregistrer l'achat.");
+      else montrerErreur('#a-erreur', messageErreur(err));
     } finally {
       bouton.disabled = false;
+      bouton.textContent = texteBouton;
     }
   }
 
@@ -1102,18 +1491,35 @@
       lieuVente: $('#v-lieu').value.trim(),
       venduLe: Date.now(),
     };
+    const id = venteEnCours;
     const bouton = $('#v-valider');
     bouton.disabled = true;
+    fermer($('#dlg-vente'));
+
+    // Le grand moment : le tampon « Vendu » claque sur l'étiquette, puis elle s'envole.
+    const carte = document.querySelector(`.etiquette[data-id="${CSS.escape(id)}"]`);
+    let animee = false;
+    if (carte && !mouvementReduit && etat.vue === 'stock') {
+      const r = carte.getBoundingClientRect();
+      if (r.bottom > 0 && r.top < window.innerHeight) {
+        animee = true;
+        carte.classList.add('vendue');
+        setTimeout(() => { Son.tampon(); vibrer(45); }, 120);
+        await attendre(1050);
+      }
+    }
     try {
-      await Stockage.ecrire('articles', venteEnCours, data);
-      fermer($('#dlg-vente'));
+      await Stockage.ecrire('articles', id, data);
       const g = benefice(data);
-      pluieDePieces(g > 0 ? 9 : 4);
+      Son.kaching();
+      vibrer([30, 50, 30, 50, 80]);
+      pluieDePieces(g > 0 ? 12 : 4);
       toast(g >= 0
         ? `Vendu ! +${euros(encaisse(data))} dans le porte-monnaie, dont ${euros(g)} de bénéfice.`
         : `Vendu. +${euros(encaisse(data))} dans le porte-monnaie, mais ${euros(-g)} de perte.`);
     } catch (err) {
-      montrerErreur('#v-erreur', messageErreur(err));
+      if (animee) carte.classList.remove('vendue');
+      toast(messageErreur(err));
     } finally {
       bouton.disabled = false;
     }
@@ -1143,10 +1549,19 @@
     if (!ok) return;
     try {
       await Stockage.effacer('articles', id);
+      let annule = false;
       toast(`« ${a.nom} » est supprimé.`, {
         label: 'Annuler',
-        faire: () => Stockage.ecrire('articles', id, a).catch((err) => toast(messageErreur(err))),
+        faire: () => {
+          annule = true;
+          Stockage.ecrire('articles', id, a).catch((err) => toast(messageErreur(err)));
+        },
       });
+      if (a.photo && assetsCap) {
+        setTimeout(() => {
+          if (!annule && !etat.articles.has(id)) assetsCap.delete(a.photo).catch(() => {});
+        }, 9000);
+      }
     } catch (err) {
       toast(messageErreur(err));
     }
@@ -1202,7 +1617,12 @@
     try {
       await Stockage.ecrire('mouvements', nouvelId(), data);
       fermer($('#dlg-mouvement'));
-      if (depot) pluieDePieces(6);
+      if (depot) {
+        pluieDePieces(8);
+        Son.pieces();
+      } else {
+        Son.papier();
+      }
       toast(depot ? `+${euros(montant)} dans le porte-monnaie.` : `${MOINS}${euros(montant)} retirés du porte-monnaie.`);
     } catch (err) {
       montrerErreur('#m-erreur', messageErreur(err));
@@ -1234,6 +1654,7 @@
     $('#r-nom').value = etat.reglages.nom || '';
     $('#r-marge').value = String(etat.reglages.marge ?? REGLAGES_DEFAUT.marge).replace('.', ',');
     $('#r-commission').value = String(etat.reglages.commission ?? 0).replace('.', ',');
+    $('#r-objectif').value = etat.reglages.objectif ? String(etat.reglages.objectif).replace('.', ',') : '';
     montrerErreur('#r-erreur', '');
     ouvrir($('#dlg-reglages'));
   }
@@ -1244,7 +1665,9 @@
     const commission = lireMontant($('#r-commission').value);
     if (margeVisee === null || Number.isNaN(margeVisee) || margeVisee < 0) return montrerErreur('#r-erreur', 'La marge visée doit être un pourcentage, par exemple 50.');
     if (commission === null || Number.isNaN(commission) || commission < 0 || commission >= 90) return montrerErreur('#r-erreur', 'Les frais de vente doivent être un pourcentage entre 0 et 89.');
-    const data = { nom: $('#r-nom').value.trim() || REGLAGES_DEFAUT.nom, marge: margeVisee, commission };
+    const objectif = lireMontant($('#r-objectif').value);
+    if (Number.isNaN(objectif) || (objectif !== null && objectif < 0)) return montrerErreur('#r-erreur', "L'objectif doit être un montant en euros, ou rien.");
+    const data = { nom: $('#r-nom').value.trim() || REGLAGES_DEFAUT.nom, marge: margeVisee, commission, objectif: objectif || null };
     try {
       await Stockage.ecrire('reglages', 'caisse', data);
       fermer($('#dlg-reglages'));
@@ -1286,11 +1709,11 @@
       const s = String(v ?? '');
       return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const entetes = ['Nom', 'Catégorie', 'Acheté où', "Date d'achat", "Prix d'achat", "Frais d'achat", 'Prix prévu', 'Statut', 'Date de vente', 'Vendu où', 'Prix de vente', 'Frais de vente', 'Bénéfice', 'Note'];
+    const entetes = ['Nom', 'Marque', 'Taille', 'État', 'Catégorie', 'Acheté où', "Date d'achat", "Prix d'achat", "Frais d'achat", 'Prix prévu', 'Statut', 'Date de vente', 'Vendu où', 'Prix de vente', 'Frais de vente', 'Bénéfice', 'Note'];
     const lignes = [...etat.articles.values()]
       .sort((x, y) => comparer(x.dateAchat, y.dateAchat))
       .map((a) => [
-        a.nom, a.categorie, a.lieuAchat, a.dateAchat, nombre(a.prixAchat), nombre(a.fraisAchat), nombre(a.prixPrevu),
+        a.nom, a.marque, a.taille, a.etat, a.categorie, a.lieuAchat, a.dateAchat, nombre(a.prixAchat), nombre(a.fraisAchat), nombre(a.prixPrevu),
         a.statut === 'vendu' ? 'Vendu' : 'En stock', a.dateVente || '', a.lieuVente || '',
         a.statut === 'vendu' ? nombre(a.prixVente) : '', a.statut === 'vendu' ? nombre(a.fraisVente) : '',
         a.statut === 'vendu' ? nombre(benefice(a)) : '', a.note,
@@ -1335,7 +1758,9 @@
       ...mouvements.map(([id, data]) => ({ col: 'mouvements', id, data })),
     ];
     const reglages = valeurPropre(donnees.reglages);
-    if (reglages) operations.push({ col: 'reglages', id: 'caisse', data: { nom: String(reglages.nom || REGLAGES_DEFAUT.nom), marge: Number(reglages.marge) || 0, commission: Number(reglages.commission) || 0 } });
+    if (reglages) operations.push({ col: 'reglages', id: 'caisse', data: { nom: String(reglages.nom || REGLAGES_DEFAUT.nom), marge: Number(reglages.marge) || 0, commission: Number(reglages.commission) || 0, objectif: Number(reglages.objectif) || null } });
+    // Les photos gardées dans le navigateur sont trop lourdes pour le compte : elles restent sur l'appareil d'origine.
+    if (Stockage.db) for (const op of operations) if (op.col === 'articles' && op.data.photoLocale) op.data = { ...op.data, photoLocale: null };
     try {
       await Stockage.lot(operations);
       fermer($('#dlg-reglages'));
@@ -1354,15 +1779,156 @@
     fermer($('#dlg-reglages'));
     const ok = await confirmer(`Effacer ${pluriel(etat.articles.size, 'article')} et ${pluriel(etat.mouvements.size, 'mouvement')} ? Impossible de revenir en arrière sans sauvegarde.`, 'Tout effacer');
     if (!ok) return;
+    const photos = [...etat.articles.values()].map((a) => a.photo).filter(Boolean);
     try {
       await Stockage.lot([
         ...[...etat.articles.keys()].map((id) => ({ col: 'articles', id, data: null })),
         ...[...etat.mouvements.keys()].map((id) => ({ col: 'mouvements', id, data: null })),
       ]);
       soldeAffiche = null;
+      if (assetsCap) photos.forEach((ref) => assetsCap.delete(ref).catch(() => {}));
       toast('Le porte-monnaie est vide. À toi de jouer.');
     } catch (err) {
       toast(messageErreur(err));
+    }
+  }
+
+  /* Annonce écrite par Claude */
+
+  let annonceEnCours = null;
+  let annonceCtl = null;
+  let annonceTexte = { titre: '', description: '', hashtags: '' };
+
+  function promptAnnonce(a, avecPhoto) {
+    const lignes = [
+      ['Article', a.nom], ['Marque', a.marque], ['Catégorie', libelleCategorie(a.categorie)], ['Taille', a.taille],
+      ['État', a.etat], ['Notes du vendeur', a.note], ['Prix demandé', a.prixPrevu ? euros(a.prixPrevu) : ''],
+    ].filter(([, v]) => v).map(([k, v]) => `- ${k} : ${v}`).join('\n');
+    return `Tu aides un particulier qui revend des articles d'occasion à écrire son annonce pour Vinted ou Leboncoin.
+Écris en français courant, sur un ton simple et vendeur, sans exagération et sans emoji.
+N'invente aucun détail : utilise seulement les informations ci-dessous${avecPhoto ? ' et ce qui se voit clairement sur la photo jointe (couleur, coupe, matière apparente, logo)' : ''}. Si une information manque (taille, état), n'en parle pas.
+
+${lignes}
+
+Réponds exactement dans ce format, sans rien d'autre :
+TITRE: <un titre de 60 caractères maximum, avec la marque, le type d'article, la couleur si elle est connue et la taille si elle est connue>
+DESCRIPTION:
+<4 à 7 lignes courtes : ce que c'est, l'état, la taille, les détails utiles ; termine par une ligne sur l'envoi rapide et soigné>
+HASHTAGS: <5 à 8 mots-clés en hashtags, séparés par des espaces>`;
+  }
+
+  function lireAnnonce(texte) {
+    const t = String(texte || '').replace(/\r/g, '');
+    const titre = (t.match(/TITRE\s*:\s*(.*)/i) || [])[1] || '';
+    let description = (t.match(/DESCRIPTION\s*:\s*\n?([\s\S]*?)(?=\n\s*HASHTAGS\s*:|$)/i) || [])[1] || '';
+    const hashtags = (t.match(/HASHTAGS\s*:\s*(.*)/i) || [])[1] || '';
+    if (!titre && !description && !/TITRE|DESCRIPTION/i.test(t)) description = t;
+    return { titre: titre.trim(), description: description.trim(), hashtags: hashtags.trim() };
+  }
+
+  function messageClaude(e) {
+    const code = e && e.code;
+    if (code === 'rate_limited') return "Claude est très demandé, ou tu as atteint ta limite d'utilisation. Réessaie dans un moment.";
+    if (code === 'not_granted') return "Tu n'as pas autorisé Claude sur cette page. Recharge-la pour qu'il te le redemande.";
+    if (code === 'session_expired') return 'Ta session claude.ai a expiré. Reconnecte-toi puis réessaie.';
+    if (code === 'refused') return "Claude n'a pas voulu écrire cette annonce. Modifie le nom ou les notes et réessaie.";
+    if (code === 'sampling_disabled') return "Claude n'est pas disponible pour ton compte.";
+    return "L'annonce n'a pas pu être écrite. Appuie sur « Autre version » pour réessayer.";
+  }
+
+  async function ouvrirAnnonce(id, nouvelle) {
+    const a = etat.articles.get(id);
+    if (!a || !sampleCap) return;
+    annonceEnCours = id;
+    if (annonceCtl) annonceCtl.abort();
+    const ctl = new AbortController();
+    annonceCtl = ctl;
+
+    const url = photoUrl(a);
+    const img = $('#an-photo');
+    img.hidden = !url;
+    if (url) img.src = url;
+    $('#an-prix').textContent = a.prixPrevu ? euros(a.prixPrevu) : '';
+    $('#an-meta').textContent = [a.marque, a.taille ? `Taille ${a.taille}` : '', a.etat].filter(Boolean).join(' · ');
+    annonceTexte = { titre: '', description: '', hashtags: '' };
+    $('#an-titre').textContent = a.nom;
+    $('#an-description').textContent = '';
+    $('#an-hashtags').textContent = '';
+    $('#annonce').classList.add('en-cours');
+    $('#an-etat').textContent = 'Claude écrit ton annonce…';
+    $('#an-copier').disabled = true;
+    $('#an-copier-titre').disabled = true;
+    $('#an-autre').disabled = true;
+    ouvrir($('#dlg-annonce'));
+
+    const afficher = (texte) => {
+      annonceTexte = lireAnnonce(texte);
+      if (annonceTexte.titre) $('#an-titre').textContent = annonceTexte.titre;
+      $('#an-description').textContent = annonceTexte.description;
+      $('#an-hashtags').textContent = annonceTexte.hashtags;
+    };
+
+    let images = null;
+    if (url && sampleImages) {
+      try {
+        const reponse = await fetch(url);
+        if (reponse.ok) images = [await reponse.blob()];
+      } catch (e) { images = null; }
+    }
+    const demander = (avecImages) => {
+      const options = { signal: ctl.signal, modelTier: 'quick', onText: ({ text }) => afficher(text) };
+      if (avecImages) options.images = avecImages;
+      if (nouvelle) options.cache = false;
+      return sampleCap(promptAnnonce(a, Boolean(avecImages)), options);
+    };
+
+    try {
+      let resultat;
+      try {
+        resultat = await demander(images);
+      } catch (e) {
+        // Une seule nouvelle tentative, sans la photo, si c'est la photo qui bloque.
+        if (!images || !e || !['images_unavailable', 'image_rejected'].includes(e.code)) throw e;
+        if (e.code === 'images_unavailable') sampleImages = false;
+        resultat = await demander(null);
+      }
+      if (ctl.signal.aborted) return;
+      afficher(resultat.text);
+      $('#an-etat').textContent = 'Relis, ajuste si besoin, puis copie le tout dans ton appli de vente.';
+      $('#an-copier').disabled = false;
+      $('#an-copier-titre').disabled = !annonceTexte.titre;
+    } catch (e) {
+      if (e && e.code === 'cancelled') return;
+      if (e && e.text) afficher(e.text);
+      $('#an-etat').textContent = messageClaude(e);
+      if (e && ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(e.code)) {
+        sampleCap = null;
+        rendre();
+      }
+    } finally {
+      if (annonceCtl === ctl) {
+        $('#annonce').classList.remove('en-cours');
+        $('#an-autre').disabled = !sampleCap;
+      }
+    }
+  }
+
+  async function copier(texte) {
+    try {
+      await navigator.clipboard.writeText(texte);
+      toast('Copié. Colle-le dans ton annonce.');
+    } catch (e) {
+      const zone = document.createElement('textarea');
+      zone.value = texte;
+      zone.setAttribute('readonly', '');
+      zone.style.position = 'fixed';
+      zone.style.opacity = '0';
+      document.body.appendChild(zone);
+      zone.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+      zone.remove();
+      toast(ok ? 'Copié. Colle-le dans ton annonce.' : 'Copie impossible ici : sélectionne le texte à la main.');
     }
   }
 
@@ -1436,6 +2002,14 @@
           supprimer: () => supprimerArticle(id),
           'annuler-vente': () => annulerVente(id),
           'supprimer-mouvement': () => supprimerMouvement(id),
+          annonce: () => ouvrirAnnonce(id, false),
+          photo: () => {
+            const a = etat.articles.get(id);
+            if (!a || !photoUrl(a)) return;
+            $('#photo-grande').src = photoUrl(a);
+            $('#photo-grande').alt = `Photo de ${a.nom}`;
+            ouvrir($('#dlg-photo'));
+          },
         }[action.dataset.action];
         if (faire) faire();
         return;
@@ -1500,6 +2074,85 @@
     }));
 
     $('#ouvrir-reglages').addEventListener('click', ouvrirReglages);
+    $('#obj-fixer').addEventListener('click', () => {
+      ouvrirReglages();
+      setTimeout(() => $('#r-objectif').focus(), 40);
+    });
+
+    $('#son').addEventListener('click', () => {
+      Son.actif = !Son.actif;
+      try { localStorage.setItem(CLE_SON, Son.actif ? 'oui' : 'non'); } catch (e) { /* réglage pour cette visite seulement */ }
+      rendreSon();
+      if (Son.actif) Son.pieces();
+    });
+    rendreSon();
+
+    $('#a-photo').addEventListener('change', async (e) => {
+      const fichier = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!fichier) return;
+      $('#a-photo-texte').textContent = 'Préparation…';
+      try {
+        const blob = await compresserPhoto(fichier, etat.mode === 'appareil' ? 640 : 1200);
+        if (photoAchat.blob && photoAchat.url) URL.revokeObjectURL(photoAchat.url);
+        photoAchat.blob = blob;
+        photoAchat.url = URL.createObjectURL(blob);
+        photoAchat.retiree = false;
+      } catch (err) {
+        toast("Cette image n'a pas pu être lue. Essaie une autre photo.");
+      }
+      afficherPhotoAchat();
+    });
+    $('#a-photo-retirer').addEventListener('click', () => {
+      if (photoAchat.blob && photoAchat.url) URL.revokeObjectURL(photoAchat.url);
+      photoAchat.blob = null;
+      photoAchat.url = null;
+      photoAchat.retiree = true;
+      afficherPhotoAchat();
+    });
+
+    $('#an-autre').addEventListener('click', () => { if (annonceEnCours) ouvrirAnnonce(annonceEnCours, true); });
+    $('#an-copier').addEventListener('click', () => {
+      copier([annonceTexte.description, annonceTexte.hashtags].filter(Boolean).join('\n\n'));
+    });
+    $('#an-copier-titre').addEventListener('click', () => copier(annonceTexte.titre));
+    $('#form-annonce').addEventListener('submit', (e) => e.preventDefault());
+    $('#dlg-annonce').addEventListener('close', () => {
+      if (annonceCtl) annonceCtl.abort();
+      annonceCtl = null;
+    });
+
+    // Une photo qui ne charge plus laisse un cadre vide plutôt qu'une icône cassée.
+    document.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.closest('.polaroid')) img.closest('.polaroid').classList.add('casse');
+    }, true);
+
+    // Le porte-monnaie suit la souris, et on peut le secouer.
+    const pf = $('#portemonnaie');
+    if (!mouvementReduit && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      const scene = $('.scene');
+      scene.addEventListener('pointermove', (e) => {
+        const r = pf.getBoundingClientRect();
+        const x = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width * 0.8)));
+        const y = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (r.height * 0.8)));
+        pf.style.setProperty('--ty', (x * 7).toFixed(2) + 'deg');
+        pf.style.setProperty('--tx', (-y * 5).toFixed(2) + 'deg');
+        pf.style.setProperty('--lx', (50 + x * 45).toFixed(1) + '%');
+        pf.style.setProperty('--ly', (35 + y * 40).toFixed(1) + '%');
+        pf.style.setProperty('--sx', (50 - x * 50).toFixed(1) + '%');
+      });
+      scene.addEventListener('pointerleave', () => {
+        ['--tx', '--ty', '--lx', '--ly', '--sx'].forEach((v) => pf.style.removeProperty(v));
+      });
+    }
+    pf.addEventListener('click', () => {
+      if (mouvementReduit || pf.classList.contains('secoue')) return;
+      pf.classList.add('secoue');
+      Son.pieces();
+      vibrer(20);
+      setTimeout(() => pf.classList.remove('secoue'), 650);
+    });
     $('#form-reglages').addEventListener('submit', validerReglages);
     $('#export-csv').addEventListener('click', exporterCsv);
     $('#export-json').addEventListener('click', exporterJson);
@@ -1572,6 +2225,16 @@
     rendre();
     let db = null;
     if (window.claude && typeof window.claude.use === 'function') {
+      window.claude.use('assets').then((a) => { assetsCap = a; rendre(); }).catch(() => {});
+      window.claude.use('sample').then(async (fonction) => {
+        if (!fonction) return;
+        sampleCap = fonction;
+        try {
+          const limites = await fonction.limits();
+          sampleImages = Boolean(limites && limites.images);
+        } catch (e) { sampleImages = false; }
+        rendre();
+      }).catch(() => {});
       try { db = await window.claude.use('db'); } catch (e) { db = null; }
     }
     if (db) await Stockage.brancherCompte(db);
