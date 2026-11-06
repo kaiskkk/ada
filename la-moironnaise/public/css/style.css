@@ -336,7 +336,7 @@ textarea { resize: vertical; min-height: 6rem; }
   .admin-nav a { padding: .55rem .65rem; }
   .admin-barre-in { gap: .4rem; }
 }
-@media (max-width: 400px) { .admin-logo .marque-texte { display: none; } }
+@media (max-width: 480px) { .admin-logo .marque-texte { display: none; } }
 
 .admin-contenu { width: min(1200px, 100%); margin: 0 auto; padding: 2rem var(--gouttiere) 4rem; }
 
