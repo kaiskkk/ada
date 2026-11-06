@@ -44,3 +44,9 @@ Les formulaires (visite, estimation) ouvrent la messagerie du visiteur avec un m
 ## Mettre en ligne
 
 Le plus simple, gratuit : **GitHub Pages**. Dans le dépôt GitHub, allez dans *Settings → Pages*, choisissez la branche à publier et le dossier racine. Le site est en ligne quelques minutes plus tard. Netlify et Vercel fonctionnent aussi, par simple glisser-déposer du dossier.
+
+---
+
+## Autre projet dans ce dépôt
+
+Le dossier [`la-moironnaise/`](la-moironnaise/) contient le site de sondage de satisfaction de la boulangerie La Moironnaise (QR code, questionnaire papier, espace administrateur). Voir son [README](la-moironnaise/README.md).

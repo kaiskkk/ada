@@ -1,0 +1,20 @@
+{
+  "name": "la-moironnaise-sondage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sondage de satisfaction de la boulangerie La Moironnaise : questionnaire en ligne, QR code, feuilles à imprimer et espace administrateur.",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env --watch server.js",
+    "admin": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env scripts/admin.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "qrcode": "^1.5.4"
+  }
+}
